@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Feed Filter</title>
+<link rel="stylesheet" href="ui.css">
+<style>
+  body { width: 360px; max-height: 600px; overflow-y: auto; }
+  main { padding: 8px 0; display: flex; flex-direction: column; }
+  .head { display: flex; align-items: center; gap: 12px; padding: 8px 16px; }
+  .head .name { font-size: 16px; font-weight: 500; line-height: 22px; }
+  .status { font-size: 14px; color: var(--text-2); display: flex; align-items: center; gap: 6px; }
+  .block { padding: 8px 16px 12px; }
+  .big { font-size: 16px; font-weight: 500; }
+  .split { margin-top: 12px; }
+  .cnts { display: flex; gap: 16px; margin-top: 10px; }
+  .cnt { font-size: 12px; color: var(--text-2); display: flex; align-items: center; gap: 6px; }
+  .cnt b { color: var(--text); font-weight: 500; }
+  .goals { padding: 8px 16px; }
+  .goals .lbl { font-size: 14px; font-weight: 500; margin-bottom: 10px; }
+  .foot { padding: 8px 16px 4px; font-size: 12px; color: var(--text-2); }
+  .off-state { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 24px 24px 8px; }
+  .off-state h1 { font-size: 20px; font-weight: 400; margin: 12px 0 0; line-height: 28px; }
+  .off-state p { margin: 8px 0 0; color: var(--text-2); }
+  .cmd { padding: 12px 16px; }
+  .cmd .box { display: flex; align-items: center; gap: 8px; background: var(--surface); border-radius: 8px; padding: 4px 4px 4px 12px; }
+  .cmd code { flex: 1; }
+  .actions { display: flex; justify-content: center; gap: 8px; padding: 16px; }
+</style>
+</head>
+<body>
+<main>
+  <div class="head">
+    <svg class="mark" width="40" height="40" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="20" fill="var(--mark)"/><path d="M11 13h18l-7 8v6l-4 2v-8z" fill="#fff"/></svg>
+    <div>
+      <div class="name">Feed Filter</div>
+      <div class="status"><span class="dot wait" id="dot"></span><span id="statusText">Checking the scorer…</span></div>
+    </div>
+  </div>
+  <div class="hr"></div>
+
+  <section id="online">
+    <div class="block" id="countsBlock">
+      <div class="big" id="through">…</div>
+      <div class="small muted" id="sub">On this page</div>
+      <div class="split" id="split" role="img"></div>
+      <div class="cnts">
+        <span class="cnt"><span class="dot sw-ongoal"></span><b id="shown">0</b> on goal</span>
+        <span class="cnt"><span class="dot sw-maybe"></span><b id="uncertain">0</b> maybe</span>
+        <span class="cnt"><span class="dot sw-filtered"></span><b id="hidden">0</b> filtered</span>
+      </div>
+    </div>
+    <div class="block" id="noTab" hidden><div class="muted">Open YouTube to see this page's numbers.</div></div>
+    <div class="hr"></div>
+
+    <label class="mi">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+      Show what was filtered
+      <span class="switch"><input type="checkbox" id="reveal" role="switch"><span class="track"></span><span class="knob"></span></span>
+    </label>
+    <label class="mi">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="5" width="4" height="14"/><rect x="14" y="5" width="4" height="14"/></svg>
+      Pause on this tab
+      <span class="switch"><input type="checkbox" id="off" role="switch"><span class="track"></span><span class="knob"></span></span>
+    </label>
+    <div class="hr"></div>
+  </section>
+
+  <section id="setup" hidden>
+    <div class="off-state">
+      <h1>Finish setup</h1>
+      <p>Add your Jev key and at least one goal. Until then, YouTube looks as usual.</p>
+    </div>
+    <div class="actions">
+      <button class="pill primary" id="openSetup" type="button">Open setup</button>
+    </div>
+    <div class="hr"></div>
+  </section>
+
+  <section id="offline" hidden>
+    <div class="off-state">
+      <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" stroke-width="1.2" aria-hidden="true"><path d="M2 2l20 20M8.5 16.5a5 5 0 0 1 7 0M5 13a10 10 0 0 1 5.2-2.8M19 13a10 10 0 0 0-2-1.6M2 8.8a15 15 0 0 1 4.2-2.6M22 8.8A15 15 0 0 0 10.7 5M12 20h.01"/></svg>
+      <h1>Can't reach the scorer</h1>
+      <p>Videos stay blurred until it's back, so nothing slips through unchecked.</p>
+      <p class="small" id="offWhy"></p>
+    </div>
+    <div class="cmd" id="proxyCmd">
+      <div class="small muted" style="margin-bottom:6px">Start it in Terminal, from the project folder</div>
+      <div class="box"><code id="cmd">uv run python -m proxy</code><button class="pill text small" id="copy" type="button">Copy</button></div>
+    </div>
+    <div class="actions">
+      <button class="pill" id="unfiltered" type="button">Show unfiltered</button>
+      <button class="pill primary" id="retry" type="button">Try again</button>
+    </div>
+    <div class="hr"></div>
+  </section>
+
+  <a class="mi" href="#" id="dashboard">
+    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>
+    Dashboard
+  </a>
+  <a class="mi" href="#" id="options">
+    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg>
+    Settings
+  </a>
+  <div class="hr"></div>
+
+  <div class="goals">
+    <div class="lbl">Looking for</div>
+    <div class="chips" id="goals"></div>
+  </div>
+
+  <div class="foot" id="today"></div>
+</main>
+<script src="shared/core.js"></script>
+<script src="pages.js"></script>
+<script src="popup.js"></script>
+</body>
+</html>

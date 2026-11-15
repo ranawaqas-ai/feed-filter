@@ -1,0 +1,258 @@
+{
+ "scenario": {
+  "events": [
+   {
+    "ts": 1794398400,
+    "video": {
+     "videoId": "vid1",
+     "title": "Synthetic title 1",
+     "channel": "Channel 1",
+     "durationSeconds": 301,
+     "viewCount": 1000,
+     "isShort": false,
+     "description": ""
+    },
+    "perGoal": [
+     [
+      "Goal A",
+      0.2
+     ],
+     [
+      "Goal B",
+      0.7
+     ]
+    ]
+   },
+   {
+    "ts": 1794398460,
+    "video": {
+     "videoId": "vid1",
+     "title": "Synthetic title 1",
+     "channel": "Channel 1",
+     "durationSeconds": 301,
+     "viewCount": 1000,
+     "isShort": false,
+     "description": ""
+    },
+    "perGoal": [
+     [
+      "Goal A",
+      0.4
+     ],
+     [
+      "Goal B",
+      null
+     ]
+    ]
+   },
+   {
+    "ts": 1794571200,
+    "video": {
+     "videoId": "vid2",
+     "title": "Synthetic title 2",
+     "channel": "Channel 2",
+     "durationSeconds": 302,
+     "viewCount": 2000,
+     "isShort": true,
+     "description": ""
+    },
+    "perGoal": [
+     [
+      "Goal A",
+      0.05
+     ]
+    ]
+   },
+   {
+    "ts": 1794657600,
+    "video": {
+     "videoId": "vid3",
+     "title": "Synthetic title 3",
+     "channel": "Channel 0",
+     "durationSeconds": 303,
+     "viewCount": 3000,
+     "isShort": false,
+     "description": ""
+    },
+    "perGoal": [
+     [
+      "Goal A",
+      0.9
+     ],
+     [
+      "Goal B",
+      0.1
+     ]
+    ]
+   },
+   {
+    "ts": 1794657570,
+    "video": {
+     "videoId": "vid4",
+     "title": "Synthetic title 4",
+     "channel": "Channel 1",
+     "durationSeconds": 304,
+     "viewCount": 4000,
+     "isShort": false,
+     "description": ""
+    },
+    "perGoal": [
+     [
+      "Goal A",
+      null
+     ],
+     [
+      "Goal B",
+      null
+     ]
+    ]
+   },
+   {
+    "ts": 1792929600,
+    "video": {
+     "videoId": "vid5",
+     "title": "Synthetic title 5",
+     "channel": "Channel 2",
+     "durationSeconds": 305,
+     "viewCount": 5000,
+     "isShort": false,
+     "description": ""
+    },
+    "perGoal": [
+     [
+      "Goal A",
+      0.5
+     ]
+    ]
+   }
+  ],
+  "feedback": [
+   {
+    "ts": 1794571205,
+    "video": {
+     "videoId": "vid2",
+     "title": "Synthetic title 2",
+     "channel": "Channel 2",
+     "durationSeconds": 302,
+     "viewCount": 2000,
+     "isShort": true,
+     "description": ""
+    },
+    "goal": "Goal A",
+    "action": "keep",
+    "p": 0.05,
+    "previousVerdict": "hide",
+    "reason": "hide p=0.05 g1"
+   },
+   {
+    "ts": 1792929600,
+    "video": {
+     "videoId": "vid5",
+     "title": "Synthetic title 5",
+     "channel": "Channel 2",
+     "durationSeconds": 305,
+     "viewCount": 5000,
+     "isShort": false,
+     "description": ""
+    },
+    "goal": "Goal A",
+    "action": "hide",
+    "p": null,
+    "previousVerdict": null,
+    "reason": null
+   }
+  ],
+  "days": 7,
+  "today": "2026-11-14"
+ },
+ "expected": {
+  "since": "2026-11-08",
+  "today": "2026-11-14",
+  "firstVerdictDay": "2026-10-25",
+  "rows": [
+   {
+    "day": "2026-11-11",
+    "videoId": "vid1",
+    "firstSeen": 1794398400.0,
+    "title": "Synthetic title 1",
+    "channel": "Channel 1",
+    "durationSeconds": 301,
+    "isShort": false,
+    "pByGoalText": {
+     "Goal A": 0.4,
+     "Goal B": 0.7
+    },
+    "goalTexts": [
+     "Goal A",
+     "Goal B"
+    ],
+    "sightings": 2,
+    "errors": 1
+   },
+   {
+    "day": "2026-11-13",
+    "videoId": "vid2",
+    "firstSeen": 1794571200.0,
+    "title": "Synthetic title 2",
+    "channel": "Channel 2",
+    "durationSeconds": 302,
+    "isShort": true,
+    "pByGoalText": {
+     "Goal A": 0.05
+    },
+    "goalTexts": [
+     "Goal A"
+    ],
+    "sightings": 1,
+    "errors": 0
+   },
+   {
+    "day": "2026-11-14",
+    "videoId": "vid4",
+    "firstSeen": 1794657570.0,
+    "title": "Synthetic title 4",
+    "channel": "Channel 1",
+    "durationSeconds": 304,
+    "isShort": false,
+    "pByGoalText": {},
+    "goalTexts": [
+     "Goal A",
+     "Goal B"
+    ],
+    "sightings": 1,
+    "errors": 2
+   },
+   {
+    "day": "2026-11-14",
+    "videoId": "vid3",
+    "firstSeen": 1794657600.0,
+    "title": "Synthetic title 3",
+    "channel": "Channel 0",
+    "durationSeconds": 303,
+    "isShort": false,
+    "pByGoalText": {
+     "Goal A": 0.9,
+     "Goal B": 0.1
+    },
+    "goalTexts": [
+     "Goal A",
+     "Goal B"
+    ],
+    "sightings": 1,
+    "errors": 0
+   }
+  ],
+  "feedback": [
+   {
+    "ts": 1794571205.0,
+    "videoId": "vid2",
+    "goalText": "Goal A",
+    "action": "keep",
+    "p": 0.05,
+    "previousVerdict": "hide",
+    "reason": "hide p=0.05 g1",
+    "title": "Synthetic title 2"
+   }
+  ]
+ }
+}

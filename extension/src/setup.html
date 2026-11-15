@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Set up Feed Filter</title>
+<link rel="stylesheet" href="ui.css">
+<style>
+  .wrap { max-width: 720px; margin: 0 auto; padding: 24px 16px 64px; }
+  .head { display: flex; align-items: center; gap: 16px; margin: 8px 0 8px; }
+  .head h1 { font: 700 28px/36px var(--font); margin: 0; }
+  .lead { color: var(--text-2); margin: 0 0 8px; }
+  .step { border: 1px solid var(--divider); border-radius: 12px; padding: 20px 24px; margin-top: 24px; }
+  .step h2 { font: 500 18px/26px var(--font); margin: 0; display: flex; align-items: center; gap: 12px; }
+  .step h2 .n { width: 28px; height: 28px; border-radius: 14px; background: var(--surface); display: inline-flex; align-items: center; justify-content: center; font-size: 14px; flex: none; }
+  .step .sd { color: var(--text-2); margin: 6px 0 16px; }
+  .secret { display: flex; gap: 8px; align-items: center; }
+  .hint { font-size: 12px; color: var(--text-2); margin-top: 6px; line-height: 16px; }
+  .status { display: flex; align-items: center; gap: 8px; margin-top: 12px; min-height: 20px; }
+  .goal { border: 1px solid var(--divider); border-radius: 12px; padding: 12px 16px; margin-top: 12px; }
+  .goal.on { border-color: var(--blue); box-shadow: 0 0 0 1px var(--blue); }
+  .goal .top { display: flex; align-items: center; gap: 12px; }
+  .goal .top input[type="checkbox"] { width: 18px; height: 18px; margin: 0; accent-color: var(--blue); flex: none; }
+  .goal .top .input { flex: 1; font-weight: 500; }
+  .goal textarea.input { margin-top: 8px; min-height: 72px; }
+  .actions { display: flex; gap: 12px; align-items: center; margin-top: 24px; flex-wrap: wrap; }
+  #msg { color: var(--bad); }
+  #done { text-align: center; padding: 48px 16px; }
+  #done h2 { font: 700 24px/32px var(--font); margin: 16px 0 8px; }
+  @media (max-width: 520px) { .step { padding: 16px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="head">
+    <svg class="mark" width="40" height="40" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="20" fill="var(--mark)"/><path d="M11 13h18l-7 8v6l-4 2v-8z" fill="#fff"/></svg>
+    <h1>Set up Feed Filter</h1>
+  </div>
+  <p class="lead">Feed Filter blurs YouTube home and sidebar cards until Jev has checked each video against your goals. Until setup is finished, YouTube looks as usual.</p>
+
+  <form id="form">
+    <section class="step" aria-labelledby="s1">
+      <h2 id="s1"><span class="n">1</span>Your Jev key</h2>
+      <p class="sd">Create a key at console.typesafe.ai/keys. Calls are billed to your TypeSafe account.</p>
+      <div class="secret">
+        <input id="jevKey" class="input" type="password" autocomplete="off" spellcheck="false" aria-label="Jev API key" placeholder="Paste your key">
+        <button class="pill text" id="revealKey" type="button">Show</button>
+        <button class="pill" id="testKey" type="button">Test key</button>
+      </div>
+      <div class="status" role="status"><span class="dot wait" id="keyDot" hidden></span><span id="keyText"></span></div>
+      <div class="hint">Stored only in this Chrome profile and sent only to api.typesafe.ai. Anyone with access to this profile can read it.</div>
+    </section>
+
+    <section class="step" aria-labelledby="s2">
+      <h2 id="s2"><span class="n">2</span>Your goals</h2>
+      <p class="sd">Pick at least one, edit the wording, or write your own. Each video is checked against every goal you keep, and the best match decides what you see. Wording works best as "what you want. Not: what to leave out."</p>
+      <div id="goals"></div>
+      <div class="actions" style="margin-top:12px"><button class="pill" id="addGoal" type="button">Add your own goal</button></div>
+    </section>
+
+    <section class="step" aria-labelledby="s3">
+      <h2 id="s3"><span class="n">3</span>Daily call limit</h2>
+      <p class="sd">One call per video per goal. A long evening on YouTube with three goals can use a few thousand. TypeSafe has no per-key spending limit, so this is the guard.</p>
+      <input id="dailyCallLimit" class="input" type="number" min="1" step="1" style="max-width:160px" aria-label="Daily call limit">
+    </section>
+
+    <div class="actions">
+      <button class="pill primary" id="save" type="submit">Save and start</button>
+      <span id="msg" role="alert"></span>
+    </div>
+    <p class="hint">Prefer a Python proxy on this computer that holds the key? Choose "Local proxy" under Connection in <a href="#" id="openOptions">Settings</a>.</p>
+  </form>
+
+  <section id="done" hidden>
+    <svg class="mark" width="56" height="56" viewBox="0 0 40 40" aria-hidden="true" style="margin:0 auto"><circle cx="20" cy="20" r="20" fill="var(--mark)"/><path d="M11 13h18l-7 8v6l-4 2v-8z" fill="#fff"/></svg>
+    <h2>You're set</h2>
+    <p class="muted">Open YouTube, or reload a YouTube tab that is already open.</p>
+    <div class="actions" style="justify-content:center"><button class="pill primary" id="openYouTube" type="button">Open YouTube</button></div>
+  </section>
+</div>
+<script src="shared/core.js"></script>
+<script src="pages.js"></script>
+<script src="setup.js"></script>
+</body>
+</html>

@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Feed Filter dashboard</title>
+<link rel="stylesheet" href="ui.css">
+<style>
+  body { background: #F9F9F9; }
+  @media (prefers-color-scheme: dark) { body { background: var(--bg); } }
+  .topbar { box-shadow: 0 1px 0 var(--divider); }
+  .content { display: flex; flex-direction: column; gap: 16px; padding-top: 24px; max-width: 1040px; }
+  .dcard { background: var(--bg); border-radius: 12px; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(0, 0, 0, 0.04); padding: 24px; }
+  @media (prefers-color-scheme: dark) { .dcard { background: #181818; box-shadow: 0 0 0 1px var(--divider); } }
+  .h2 { font: 500 18px/24px var(--font); margin: 0; }
+  .sub { font-size: 13px; color: var(--text-2); margin: 4px 0 0; }
+  .head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px; }
+  .head h1 { font: 700 24px/32px var(--font); margin: 0; }
+  .metrics { display: flex; flex-wrap: wrap; border-top: 1px solid var(--divider); border-bottom: 1px solid var(--divider); margin-top: 16px; }
+  .mt { flex: 1 1 150px; padding: 16px 20px; border-right: 1px solid var(--divider); }
+  .mt:last-child { border-right: 0; }
+  .mt.first { box-shadow: inset 0 3px 0 var(--ongoal); }
+  .mt .ml { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-2); }
+  .mt .mv { font-size: 28px; line-height: 36px; margin-top: 6px; font-variant-numeric: tabular-nums; }
+  .bigsplit { display: flex; gap: 2px; height: 12px; border-radius: 6px; overflow: hidden; }
+  .bigsplit span { display: block; }
+  .two { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 400px), 1fr)); gap: 16px; }
+  .ins { display: flex; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--divider); }
+  .ins:last-child { border-bottom: 0; }
+  .hours { display: flex; align-items: flex-end; gap: 3px; height: 150px; margin-top: 20px; border-bottom: 1px solid var(--text-3); }
+  .hours span { flex: 1; background: var(--ongoal); border-radius: 2px 2px 0 0; min-height: 0; }
+  .axis5 { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-2); margin-top: 6px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; color: var(--text-2); align-items: center; }
+  .legend span { display: flex; gap: 6px; align-items: center; }
+  .ggrid { display: grid; grid-template-columns: 170px 70px 1fr 90px 100px; gap: 16px; align-items: center; padding: 14px 0; border-bottom: 1px solid var(--divider); }
+  .ggrid.hd { padding: 0 0 8px; font-size: 12px; font-weight: 500; color: var(--text-2); }
+  .ggrid .n { text-align: right; font-variant-numeric: tabular-nums; }
+  .gbar { display: flex; gap: 2px; height: 8px; border-radius: 4px; overflow: hidden; background: var(--divider); }
+  .gbar span { display: block; }
+  .chart { position: relative; width: 100%; overflow-x: auto; margin-top: 16px; }
+  .chart svg { display: block; }
+  .chart text { fill: var(--text-2); font-size: 11px; font-family: var(--font); }
+  .tip { position: absolute; pointer-events: none; background: var(--bg); color: var(--text); border: 1px solid var(--divider); border-radius: 8px; padding: 8px 10px; font-size: 12px; line-height: 18px; white-space: nowrap; box-shadow: var(--shadow); display: none; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--divider); }
+  th { color: var(--text-2); font-weight: 500; }
+  td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
+  details summary { cursor: pointer; color: var(--text-2); font-size: 13px; margin-top: 12px; }
+  .vrow a.title { color: var(--text); }
+  .vrow a.title:hover { color: var(--text); text-decoration: underline; }
+  .match { color: var(--blue); font-weight: 500; }
+  .badge { font: 500 12px/24px var(--font); padding: 0 10px; border-radius: 12px; flex: none; min-width: 56px; text-align: center; }
+  .badge.keep { background: var(--blue-tint); color: var(--blue); }
+  .badge.hide { background: var(--surface); color: var(--text-2); }
+  .empty { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 32px 16px; color: var(--text-2); }
+  .empty b { color: var(--text); font-weight: 500; font-size: 16px; margin-top: 12px; }
+  .rrow { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--divider); }
+  .rrow:last-child { border-bottom: 0; }
+  .strip { display: flex; align-items: center; gap: 16px; padding: 16px 24px; color: var(--text-2); }
+  #error { color: var(--bad); }
+  @media (max-width: 860px) { .guide { display: none; } .content { padding: 16px; } }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><svg class="mark" width="28" height="28" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="20" fill="var(--mark)"/><path d="M11 13h18l-7 8v6l-4 2v-8z" fill="#fff"/></svg>Feed Filter</div>
+  <div style="flex:1"></div>
+  <span class="muted" style="display:flex;align-items:center;gap:6px"><span class="dot wait" id="topDot"></span><span id="topStatus">Checking…</span></span>
+</header>
+<div class="shell">
+  <nav class="guide">
+    <a href="dashboard.html" aria-current="page"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Dashboard</a>
+    <a href="options.html"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg>Settings</a>
+  </nav>
+  <main class="content">
+    <div class="head">
+      <div>
+        <h1>Dashboard</h1>
+        <div class="muted" id="dateLine" style="margin-top:4px">Loading…</div>
+      </div>
+      <div class="chips" role="group" aria-label="Date range" id="range">
+        <button class="chip" type="button" data-days="1">Today</button>
+        <button class="chip" type="button" data-days="7">7 days</button>
+        <button class="chip" type="button" data-days="14">14 days</button>
+        <button class="chip" type="button" data-days="30">30 days</button>
+        <button class="chip" type="button" data-days="90">90 days</button>
+      </div>
+    </div>
+    <p id="error" hidden></p>
+
+    <div id="body" hidden style="display:contents">
+      <section class="dcard" style="padding:0;overflow:hidden">
+        <div style="padding:24px 24px 8px">
+          <div style="font-size:20px;font-weight:500;line-height:28px" id="headline"></div>
+          <div class="muted" style="margin-top:4px" id="headSub"></div>
+        </div>
+        <div class="metrics" id="metrics"></div>
+        <div style="padding:20px 24px 24px">
+          <div class="bigsplit" id="bigsplit" role="img"></div>
+          <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-2);margin-top:8px"><span id="letLabel"></span><span id="filtLabel"></span></div>
+        </div>
+      </section>
+
+      <div class="two">
+        <section class="dcard">
+          <h2 class="h2">What stood out</h2>
+          <div id="insights" style="margin-top:8px"></div>
+        </section>
+        <section class="dcard">
+          <h2 class="h2">When videos arrived</h2>
+          <p class="sub">Videos offered per hour, by when each was first seen</p>
+          <div class="hours" id="hours" role="img"></div>
+          <div class="axis5"><span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>23:00</span></div>
+          <div class="muted" style="font-size:13px;margin-top:12px" id="hoursNote"></div>
+        </section>
+      </div>
+
+      <section class="dcard">
+        <div style="display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px">
+          <div><h2 class="h2">By goal</h2><p class="sub">Each video counts once, under the goal it matched best</p></div>
+          <div class="legend">
+            <span><span class="dot sw-ongoal"></span>On goal</span><span><span class="dot sw-maybe"></span>Maybe</span>
+            <span><span class="dot sw-filtered"></span>Low match</span><span><span class="dot sw-tooshort"></span>Too short</span>
+          </div>
+        </div>
+        <div style="margin-top:16px;overflow-x:auto"><div style="min-width:620px" id="goals"></div></div>
+      </section>
+
+      <section class="dcard" id="timeCard">
+        <div style="display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px">
+          <div><h2 class="h2">Over time</h2><p class="sub">Videos offered per day. A video offered on several days counts on each.</p></div>
+          <div class="legend" id="timeLegend"></div>
+        </div>
+        <div class="chart" id="timeChart"><div class="tip" id="tip"></div></div>
+        <details><summary>Show as a table</summary><div style="overflow-x:auto" id="timeTable"></div></details>
+      </section>
+      <section class="dcard strip" id="timeEmpty" hidden>
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v18h18M7 15l4-4 3 3 5-6"/></svg>
+        <div id="timeEmptyText"></div>
+      </section>
+
+      <div class="two">
+        <section class="dcard">
+          <h2 class="h2">Near misses</h2>
+          <p class="sub">Highest scores that stayed below the highlight mark</p>
+          <div style="margin-top:12px" id="nearMisses"></div>
+        </section>
+        <section class="dcard">
+          <h2 class="h2" id="onGoalTitle">On goal</h2>
+          <p class="sub" id="onGoalSub"></p>
+          <div style="margin-top:12px" id="highlighted"></div>
+        </section>
+      </div>
+
+      <div class="two">
+        <section class="dcard">
+          <h2 class="h2">Your corrections</h2>
+          <p class="sub">Times you overruled the filter with Keep or Hide</p>
+          <div style="margin-top:12px" id="overrides"></div>
+        </section>
+        <section class="dcard">
+          <h2 class="h2">Blocked by rule</h2>
+          <p class="sub">Shorts, other languages, playlists and ads, removed without scoring</p>
+          <div style="margin-top:12px" id="rules"></div>
+        </section>
+      </div>
+      <p class="small muted" id="basis"></p>
+    </div>
+  </main>
+</div>
+<script src="shared/core.js"></script>
+<script src="pages.js"></script>
+<script src="dashboard.js"></script>
+</body>
+</html>

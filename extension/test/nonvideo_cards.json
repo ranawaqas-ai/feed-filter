@@ -1,0 +1,558 @@
+[
+ {
+  "kind": "playlist",
+  "data": {
+   "content": {
+    "lockupViewModel": {
+     "contentImage": {
+      "collectionThumbnailViewModel": {
+       "primaryThumbnail": {
+        "thumbnailViewModel": {
+         "overlays": [
+          {
+           "thumbnailOverlayBadgeViewModel": {
+            "thumbnailBadges": [
+             {
+              "thumbnailBadgeViewModel": {
+               "icon": {},
+               "text": "redacted",
+               "badgeStyle": "THUMBNAIL_OVERLAY_BADGE_STYLE_DEFAULT",
+               "backgroundColor": {
+                "lightTheme": 3355443,
+                "darkTheme": 3355443
+               }
+              }
+             }
+            ],
+            "position": "THUMBNAIL_OVERLAY_BADGE_POSITION_BOTTOM_END"
+           }
+          },
+          {
+           "thumbnailHoverOverlayViewModel": {
+            "icon": {},
+            "text": {
+             "content": "redacted",
+             "styleRuns": [
+              {
+               "startIndex": 0,
+               "length": 8
+              }
+             ]
+            },
+            "style": "THUMBNAIL_HOVER_OVERLAY_STYLE_COVER"
+           }
+          }
+         ],
+         "backgroundColor": {
+          "lightTheme": 4144959,
+          "darkTheme": 4144959
+         }
+        }
+       },
+       "stackColor": {
+        "lightTheme": 10066329,
+        "darkTheme": 9211020
+       }
+      }
+     },
+     "metadata": {
+      "lockupMetadataViewModel": {
+       "title": {
+        "content": "redacted"
+       },
+       "metadata": {
+        "contentMetadataViewModel": {
+         "metadataRows": [
+          {
+           "metadataParts": [
+            {
+             "text": {
+              "content": "redacted"
+             }
+            },
+            {
+             "text": {
+              "content": "redacted"
+             }
+            }
+           ]
+          }
+         ],
+         "delimiter": "redacted"
+        }
+       },
+       "menuButton": {
+        "buttonViewModel": {
+         "iconName": "MORE_VERT",
+         "accessibilityText": "redacted",
+         "style": "BUTTON_VIEW_MODEL_STYLE_MONO",
+         "type": "BUTTON_VIEW_MODEL_TYPE_TEXT",
+         "buttonSize": "BUTTON_VIEW_MODEL_SIZE_DEFAULT",
+         "state": "BUTTON_VIEW_MODEL_STATE_ACTIVE"
+        }
+       }
+      }
+     },
+     "contentId": "redacted",
+     "contentType": "LOCKUP_CONTENT_TYPE_PLAYLIST"
+    }
+   },
+   "rowIndex": 2,
+   "colIndex": 0
+  }
+ },
+ {
+  "kind": "playlist",
+  "data": {
+   "content": {
+    "lockupViewModel": {
+     "contentImage": {
+      "collectionThumbnailViewModel": {
+       "primaryThumbnail": {
+        "thumbnailViewModel": {
+         "overlays": [
+          {
+           "thumbnailOverlayBadgeViewModel": {
+            "thumbnailBadges": [
+             {
+              "thumbnailBadgeViewModel": {
+               "icon": {},
+               "text": "redacted",
+               "badgeStyle": "THUMBNAIL_OVERLAY_BADGE_STYLE_DEFAULT",
+               "backgroundColor": {
+                "lightTheme": 3348764,
+                "darkTheme": 3348764
+               }
+              }
+             }
+            ],
+            "position": "THUMBNAIL_OVERLAY_BADGE_POSITION_BOTTOM_END"
+           }
+          },
+          {
+           "thumbnailHoverOverlayViewModel": {
+            "icon": {},
+            "text": {
+             "content": "redacted",
+             "styleRuns": [
+              {
+               "startIndex": 0,
+               "length": 8
+              }
+             ]
+            },
+            "style": "THUMBNAIL_HOVER_OVERLAY_STYLE_COVER"
+           }
+          }
+         ],
+         "backgroundColor": {
+          "lightTheme": 4990506,
+          "darkTheme": 4990506
+         }
+        }
+       },
+       "stackColor": {
+        "lightTheme": 10054511,
+        "darkTheme": 9664120
+       }
+      }
+     },
+     "metadata": {
+      "lockupMetadataViewModel": {
+       "title": {
+        "content": "redacted"
+       },
+       "metadata": {
+        "contentMetadataViewModel": {
+         "metadataRows": [
+          {
+           "metadataParts": [
+            {
+             "text": {
+              "content": "redacted"
+             }
+            },
+            {
+             "text": {
+              "content": "redacted"
+             }
+            }
+           ]
+          }
+         ],
+         "delimiter": "redacted"
+        }
+       },
+       "menuButton": {
+        "buttonViewModel": {
+         "iconName": "MORE_VERT",
+         "accessibilityText": "redacted",
+         "style": "BUTTON_VIEW_MODEL_STYLE_MONO",
+         "type": "BUTTON_VIEW_MODEL_TYPE_TEXT",
+         "buttonSize": "BUTTON_VIEW_MODEL_SIZE_DEFAULT",
+         "state": "BUTTON_VIEW_MODEL_STATE_ACTIVE"
+        }
+       }
+      }
+     },
+     "contentId": "redacted",
+     "contentType": "LOCKUP_CONTENT_TYPE_PLAYLIST"
+    }
+   },
+   "rowIndex": 24,
+   "colIndex": 1
+  }
+ },
+ {
+  "kind": "podcast",
+  "data": {
+   "content": {
+    "lockupViewModel": {
+     "contentImage": {
+      "collectionThumbnailViewModel": {
+       "primaryThumbnail": {
+        "thumbnailViewModel": {
+         "overlays": [
+          {
+           "thumbnailOverlayBadgeViewModel": {
+            "thumbnailBadges": [
+             {
+              "thumbnailBadgeViewModel": {
+               "icon": {},
+               "text": "redacted",
+               "badgeStyle": "THUMBNAIL_OVERLAY_BADGE_STYLE_DEFAULT",
+               "backgroundColor": {
+                "lightTheme": 3353389,
+                "darkTheme": 3353389
+               }
+              }
+             }
+            ],
+            "position": "THUMBNAIL_OVERLAY_BADGE_POSITION_BOTTOM_END"
+           }
+          },
+          {
+           "thumbnailHoverOverlayViewModel": {
+            "icon": {},
+            "text": {
+             "content": "redacted",
+             "styleRuns": [
+              {
+               "startIndex": 0,
+               "length": 8
+              }
+             ]
+            },
+            "style": "THUMBNAIL_HOVER_OVERLAY_STYLE_COVER"
+           }
+          }
+         ],
+         "backgroundColor": {
+          "lightTheme": 4142649,
+          "darkTheme": 4142649
+         }
+        }
+       },
+       "stackColor": {
+        "lightTheme": 10060425,
+        "darkTheme": 9205630
+       }
+      }
+     },
+     "metadata": {
+      "lockupMetadataViewModel": {
+       "title": {
+        "content": "redacted"
+       },
+       "metadata": {
+        "contentMetadataViewModel": {
+         "metadataRows": [
+          {
+           "metadataParts": [
+            {
+             "text": {
+              "content": "redacted",
+              "styleRuns": [
+               {
+                "startIndex": 0,
+                "length": 15,
+                "weightLabel": "FONT_WEIGHT_NORMAL"
+               }
+              ]
+             },
+             "icon": {
+              "name": "CHECK_CIRCLE_FILLED",
+              "height": 14,
+              "width": 14,
+              "accessibilityLabel": "redacted"
+             }
+            }
+           ]
+          },
+          {
+           "metadataParts": [
+            {
+             "text": {
+              "content": "redacted",
+              "styleRuns": [
+               {
+                "startIndex": 0,
+                "length": 17,
+                "weightLabel": "FONT_WEIGHT_MEDIUM"
+               }
+              ]
+             }
+            }
+           ]
+          }
+         ],
+         "delimiter": "redacted"
+        }
+       },
+       "menuButton": {
+        "buttonViewModel": {
+         "iconName": "MORE_VERT",
+         "accessibilityText": "redacted",
+         "style": "BUTTON_VIEW_MODEL_STYLE_MONO",
+         "type": "BUTTON_VIEW_MODEL_TYPE_TEXT",
+         "buttonSize": "BUTTON_VIEW_MODEL_SIZE_DEFAULT",
+         "state": "BUTTON_VIEW_MODEL_STATE_ACTIVE"
+        }
+       }
+      }
+     },
+     "contentId": "redacted",
+     "contentType": "LOCKUP_CONTENT_TYPE_PODCAST"
+    }
+   },
+   "rowIndex": 56,
+   "colIndex": 1
+  }
+ },
+ {
+  "kind": "podcast",
+  "data": {
+   "content": {
+    "lockupViewModel": {
+     "contentImage": {
+      "collectionThumbnailViewModel": {
+       "primaryThumbnail": {
+        "thumbnailViewModel": {
+         "overlays": [
+          {
+           "thumbnailOverlayBadgeViewModel": {
+            "thumbnailBadges": [
+             {
+              "thumbnailBadgeViewModel": {
+               "icon": {},
+               "text": "redacted",
+               "badgeStyle": "THUMBNAIL_OVERLAY_BADGE_STYLE_DEFAULT",
+               "backgroundColor": {
+                "lightTheme": 2560307,
+                "darkTheme": 2560307
+               }
+              }
+             }
+            ],
+            "position": "THUMBNAIL_OVERLAY_BADGE_POSITION_BOTTOM_END"
+           }
+          },
+          {
+           "thumbnailHoverOverlayViewModel": {
+            "icon": {},
+            "text": {
+             "content": "redacted",
+             "styleRuns": [
+              {
+               "startIndex": 0,
+               "length": 8
+              }
+             ]
+            },
+            "style": "THUMBNAIL_HOVER_OVERLAY_STYLE_COVER"
+           }
+          }
+         ],
+         "backgroundColor": {
+          "lightTheme": 4529753,
+          "darkTheme": 4529753
+         }
+        }
+       },
+       "stackColor": {
+        "lightTheme": 9005977,
+        "darkTheme": 9008787
+       }
+      }
+     },
+     "metadata": {
+      "lockupMetadataViewModel": {
+       "title": {
+        "content": "redacted"
+       },
+       "metadata": {
+        "contentMetadataViewModel": {
+         "metadataRows": [
+          {
+           "metadataParts": [
+            {
+             "text": {
+              "content": "redacted",
+              "styleRuns": [
+               {
+                "startIndex": 0,
+                "length": 14,
+                "weightLabel": "FONT_WEIGHT_NORMAL"
+               }
+              ]
+             },
+             "icon": {
+              "name": "CHECK_CIRCLE_FILLED",
+              "height": 14,
+              "width": 14,
+              "accessibilityLabel": "redacted"
+             }
+            }
+           ]
+          },
+          {
+           "metadataParts": [
+            {
+             "text": {
+              "content": "redacted",
+              "styleRuns": [
+               {
+                "startIndex": 0,
+                "length": 17,
+                "weightLabel": "FONT_WEIGHT_MEDIUM"
+               }
+              ]
+             }
+            }
+           ]
+          }
+         ],
+         "delimiter": "redacted"
+        }
+       },
+       "menuButton": {
+        "buttonViewModel": {
+         "iconName": "MORE_VERT",
+         "accessibilityText": "redacted",
+         "style": "BUTTON_VIEW_MODEL_STYLE_MONO",
+         "type": "BUTTON_VIEW_MODEL_TYPE_TEXT",
+         "buttonSize": "BUTTON_VIEW_MODEL_SIZE_DEFAULT",
+         "state": "BUTTON_VIEW_MODEL_STATE_ACTIVE"
+        }
+       }
+      }
+     },
+     "contentId": "redacted",
+     "contentType": "LOCKUP_CONTENT_TYPE_PODCAST"
+    }
+   },
+   "rowIndex": 66,
+   "colIndex": 1
+  }
+ },
+ {
+  "kind": "game",
+  "data": {
+   "content": {
+    "miniGameCardViewModel": {
+     "title": "redacted",
+     "genre": "redacted",
+     "accessibilityText": "redacted",
+     "overflowButton": {
+      "buttonViewModel": {
+       "iconName": "MORE_VERT",
+       "accessibilityText": "redacted",
+       "style": "BUTTON_VIEW_MODEL_STYLE_CUSTOM",
+       "buttonSize": "BUTTON_VIEW_MODEL_SIZE_COMPACT",
+       "state": "BUTTON_VIEW_MODEL_STATE_ACTIVE",
+       "customFontColor": 4294967295
+      }
+     },
+     "layout": "MINI_APP_LAYOUT_PORTRAIT",
+     "colorPalette": {
+      "textPrimaryColor": 15069439,
+      "sectionTwoColor": 1129586,
+      "sectionFourColor": 864089
+     },
+     "actionButton": {
+      "buttonViewModel": {
+       "title": "redacted",
+       "style": "BUTTON_VIEW_MODEL_STYLE_CUSTOM",
+       "state": "BUTTON_VIEW_MODEL_STATE_ACTIVE",
+       "customBackgroundColor": 4293259519,
+       "customFontColor": 4279319666
+      }
+     },
+     "style": "MINI_GAME_CARD_STYLE_BIG_METADATA_FONT",
+     "inlinePlaybackExperiments": {
+      "enableSimplifiedAndroidUi": false,
+      "disableCinematicContainer": false,
+      "enableLoggingDirectivesForAndroidInlinePlayback": true
+     },
+     "indexInShelf": 0,
+     "responsiveNumVisibleItems": 2,
+     "metadataText": "redacted",
+     "ageRating": {
+      "label": "redacted",
+      "imageUrl": "redacted"
+     }
+    }
+   },
+   "colIndex": 0,
+   "rowIndex": 8
+  }
+ },
+ {
+  "kind": "game",
+  "data": {
+   "content": {
+    "miniGameCardViewModel": {
+     "title": "redacted",
+     "genre": "redacted",
+     "accessibilityText": "redacted",
+     "overflowButton": {
+      "buttonViewModel": {
+       "iconName": "MORE_VERT",
+       "accessibilityText": "redacted",
+       "style": "BUTTON_VIEW_MODEL_STYLE_CUSTOM",
+       "buttonSize": "BUTTON_VIEW_MODEL_SIZE_COMPACT",
+       "state": "BUTTON_VIEW_MODEL_STATE_ACTIVE",
+       "customFontColor": 4294967295
+      }
+     },
+     "layout": "MINI_APP_LAYOUT_PORTRAIT",
+     "colorPalette": {
+      "textPrimaryColor": 16777215,
+      "sectionTwoColor": 5789784,
+      "sectionFourColor": 4144959
+     },
+     "actionButton": {
+      "buttonViewModel": {
+       "title": "redacted",
+       "style": "BUTTON_VIEW_MODEL_STYLE_CUSTOM",
+       "state": "BUTTON_VIEW_MODEL_STATE_ACTIVE",
+       "customBackgroundColor": 4294967295,
+       "customFontColor": 4283979864
+      }
+     },
+     "style": "MINI_GAME_CARD_STYLE_BIG_METADATA_FONT",
+     "inlinePlaybackExperiments": {
+      "enableSimplifiedAndroidUi": false,
+      "disableCinematicContainer": false,
+      "enableLoggingDirectivesForAndroidInlinePlayback": true
+     },
+     "indexInShelf": 1,
+     "responsiveNumVisibleItems": 2,
+     "metadataText": "redacted"
+    }
+   },
+   "colIndex": 1,
+   "rowIndex": 8
+  }
+ }
+]

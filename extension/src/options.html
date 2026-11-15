@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Feed Filter settings</title>
+<link rel="stylesheet" href="ui.css">
+<style>
+  .titlebar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; position: sticky; top: 56px; background: var(--bg); z-index: 5; padding: 8px 0; }
+  .titlebar .page-title { margin: 8px 0; flex: 1; }
+  #dirty { color: var(--text-2); }
+  .sec { padding: 24px 0; border-bottom: 1px solid var(--divider); scroll-margin-top: 120px; }
+  .sec:last-child { border-bottom: 0; }
+  .sh { font: 400 20px/28px var(--font); margin: 0; }
+  .sd { color: var(--text-2); margin: 6px 0 0; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px 24px; padding: 16px 0; }
+  .rl { flex: 0 0 200px; font-weight: 500; padding-top: 6px; }
+  .rc { flex: 1 1 320px; min-width: 0; }
+  .hint { font-size: 12px; color: var(--text-2); margin-top: 6px; line-height: 16px; }
+  .tgrow { display: flex; align-items: center; gap: 16px; min-height: 40px; }
+  .sechead { display: flex; align-items: flex-start; gap: 16px; }
+  .sechead > div { flex: 1; }
+  .goal-open { border: 1px solid var(--divider); border-radius: 12px; padding: 8px 20px 16px; margin-top: 16px; }
+  .goal-open .gh { display: flex; align-items: center; gap: 16px; padding: 8px 0; font: 500 16px/24px var(--font); }
+  .goal-open .gh span:first-child { flex: 1; }
+  .goal-open .gstat { color: var(--text-2); margin-top: 4px; }
+  .goal-row { display: flex; align-items: center; gap: 16px; padding: 12px 8px; border-radius: 12px; cursor: pointer; }
+  .goal-row:hover { background: var(--surface); }
+  .goal-row .gtext { flex: 1; min-width: 0; }
+  .goal-row .gname { font-weight: 500; }
+  .goal-row .gwant { color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .goal-row .glen { color: var(--text-2); font-size: 12px; white-space: nowrap; }
+  .goal-row.off .gname, .goal-row.off .gwant { opacity: 0.5; }
+  .iconbtn { width: 40px; height: 40px; border-radius: 20px; border: 0; background: none; cursor: pointer; display: grid; place-items: center; color: var(--text); }
+  .iconbtn:hover { background: var(--surface-hover); }
+  .tags { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .tags .chip { padding-right: 4px; }
+  .tags .chip .x { width: 24px; height: 24px; border-radius: 12px; }
+  .tags .chip .x:hover { background: var(--surface-hover); }
+  .addtag { width: 220px; height: 32px; padding: 4px 10px; }
+  .scale { position: relative; height: 56px; margin: 36px 8px 0; }
+  .scale .bar { position: absolute; left: 0; right: 0; top: 26px; height: 4px; display: flex; }
+  .scale .bar span { display: block; height: 100%; }
+  .scale input[type=range] { position: absolute; left: -8px; right: -8px; top: 18px; width: calc(100% + 16px); margin: 0; background: none; pointer-events: none; -webkit-appearance: none; appearance: none; height: 20px; }
+  .scale input[type=range]::-webkit-slider-runnable-track { background: none; height: 20px; }
+  .scale input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; pointer-events: auto; width: 16px; height: 16px; border-radius: 8px; border: 0; margin-top: 2px; cursor: grab; }
+  #hideRange::-webkit-slider-thumb { background: var(--filtered); box-shadow: 0 0 0 4px rgba(224, 123, 57, 0.25); }
+  #showRange::-webkit-slider-thumb { background: var(--ongoal); box-shadow: 0 0 0 4px rgba(6, 95, 212, 0.25); }
+  .scale .val { position: absolute; top: -6px; transform: translateX(-50%); background: var(--text-2); color: var(--bg); font-size: 12px; line-height: 16px; padding: 2px 6px; border-radius: 4px; }
+  .scale .sugg { position: absolute; top: 40px; transform: translateX(-50%); font-size: 12px; color: var(--blue); white-space: nowrap; }
+  .axis { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-2); margin: 4px 8px 0; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-top: 20px; }
+  .tile { padding: 16px; border-radius: 12px; background: var(--surface); }
+  .tile .tl { display: flex; align-items: center; gap: 8px; font-weight: 500; }
+  .tile .tn { color: var(--text-2); margin-top: 4px; }
+  .secret { display: flex; gap: 8px; align-items: center; }
+  select.sel { height: 32px; padding: 0 8px; border: 0; border-radius: 8px; background: var(--surface); color: var(--text); font: 500 14px var(--font); cursor: pointer; }
+  #msg { color: var(--text-2); }
+  #msg.bad { color: var(--bad); }
+  @media (max-width: 860px) { .guide { display: none; } .content { padding: 8px 16px 64px; } }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><svg class="mark" width="28" height="28" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="20" fill="var(--mark)"/><path d="M11 13h18l-7 8v6l-4 2v-8z" fill="#fff"/></svg>Feed Filter</div>
+  <div style="flex:1"></div>
+  <span class="muted" style="display:flex;align-items:center;gap:6px"><span class="dot wait" id="topDot"></span><span id="topStatus">Checking…</span></span>
+</header>
+<div class="shell">
+  <nav class="guide">
+    <a href="dashboard.html"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Dashboard</a>
+    <a href="options.html" aria-current="page"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg>Settings</a>
+    <div class="hr" style="margin:12px 0"></div>
+    <a class="sub" href="#goalsSec">Your goals</a>
+    <a class="sub" href="#rulesSec">Always filter</a>
+    <a class="sub" href="#sensSec">Sensitivity</a>
+    <a class="sub" href="#connSec">Connection</a>
+  </nav>
+
+  <main class="content">
+    <div class="titlebar">
+      <h1 class="page-title">Settings</h1>
+      <span id="dirty"></span>
+      <span id="msg" role="status"></span>
+      <button class="pill text" id="discard" type="button">Discard</button>
+      <button class="pill primary" id="save" type="button">Save</button>
+    </div>
+
+    <section id="goalsSec" class="sec">
+      <div class="sechead">
+        <div><h2 class="sh">Your goals</h2><p class="sd">Each video is checked against every goal that is on. The best match decides what you see.</p></div>
+        <button class="pill" id="addGoal" type="button"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Add goal</button>
+      </div>
+      <div id="goals"></div>
+    </section>
+
+    <section id="rulesSec" class="sec">
+      <h2 class="sh">Always filter</h2>
+      <p class="sd">Removed straight away, without being scored</p>
+      <div class="row">
+        <span class="rl">Formats</span>
+        <div class="rc">
+          <label class="tgrow"><span class="switch"><input type="checkbox" id="hideShorts" role="switch"><span class="track"></span><span class="knob"></span></span>Shorts, including the Shorts shelf</label>
+          <label class="tgrow"><span class="switch"><input type="checkbox" id="hideNonVideo" role="switch"><span class="track"></span><span class="knob"></span></span>Mixes, playlists, podcasts, games and ads</label>
+        </div>
+      </div>
+      <div class="row">
+        <span class="rl">Languages to keep</span>
+        <div class="rc">
+          <div class="tags" id="langs"></div>
+          <div class="hint">Videos clearly in another language are filtered. Unclear titles still get scored. With no language listed, every language is kept.</div>
+        </div>
+      </div>
+      <div class="row">
+        <span class="rl">Always show channels</span>
+        <div class="rc"><div class="tags" id="allowlist"></div></div>
+      </div>
+      <div class="row">
+        <span class="rl">Never show channels</span>
+        <div class="rc"><div class="tags" id="blocklist"></div></div>
+      </div>
+    </section>
+
+    <section id="sensSec" class="sec">
+      <h2 class="sh">Sensitivity</h2>
+      <p class="sd">Every video gets a match score from 0 to 100%. Two marks decide what happens to it.</p>
+      <div class="scale">
+        <div class="bar" id="bar"></div>
+        <input type="range" id="hideRange" min="0" max="100" step="1" aria-label="Filter out below">
+        <input type="range" id="showRange" min="0" max="100" step="1" aria-label="Highlight above">
+        <span class="val" id="hideVal"></span>
+        <span class="val" id="showVal"></span>
+        <span class="sugg" style="left:65%">▲ suggested 65%</span>
+      </div>
+      <div class="axis"><span>0%</span><span>50%</span><span>100%</span></div>
+      <div class="tiles">
+        <div class="tile"><div class="tl"><span class="dot sw-filtered"></span><span id="t1l"></span></div><div class="tn" id="t1n"></div></div>
+        <div class="tile"><div class="tl"><span class="dot sw-maybe"></span><span id="t2l"></span></div><div class="tn" id="t2n"></div></div>
+        <div class="tile"><div class="tl"><span class="dot sw-ongoal"></span><span id="t3l"></span></div><div class="tn" id="t3n"></div></div>
+      </div>
+      <div class="hint" id="tilesHint" style="margin-top:12px"></div>
+      <div class="row" style="align-items:center">
+        <span class="rl">Stop loading after</span>
+        <div class="rc" style="display:flex;align-items:center;gap:12px">
+          <select class="sel" id="autoLoadCap" aria-label="Stop loading after"></select>
+          <span class="muted">in a row with nothing to show</span>
+        </div>
+      </div>
+      <div class="row" style="align-items:center">
+        <span class="rl">Warn when</span>
+        <div class="rc" style="display:flex;align-items:center;gap:12px">
+          <select class="sel" id="driftPercent" aria-label="Warn when this share is rejected"></select>
+          <span class="muted">of the home videos scored so far are rejected</span>
+        </div>
+      </div>
+    </section>
+
+    <section id="connSec" class="sec">
+      <h2 class="sh">Connection</h2>
+      <p class="sd" id="connDesc"></p>
+      <div class="row">
+        <span class="rl">Scorer</span>
+        <div class="rc" role="radiogroup" aria-label="Scorer">
+          <label class="tgrow"><input type="radio" name="scorer" value="direct" id="scorerDirect">Jev key (direct): this browser calls Jev with your key</label>
+          <label class="tgrow"><input type="radio" name="scorer" value="proxy" id="scorerProxy">Local proxy (advanced): a Python proxy on this computer holds the key</label>
+        </div>
+      </div>
+      <div class="row" style="align-items:center">
+        <span class="rl">Status</span>
+        <div class="rc" style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+          <span style="display:flex;align-items:center;gap:6px"><span class="dot wait" id="connDot"></span><span id="connText">Checking…</span></span>
+          <button class="pill" id="test" type="button">Test again</button>
+        </div>
+      </div>
+      <div id="directFields">
+        <div class="row">
+          <label class="rl" for="jevKey">Jev API key</label>
+          <div class="rc">
+            <div class="secret"><input id="jevKey" type="password" class="input" autocomplete="off" spellcheck="false"><button class="pill text" id="revealKey" type="button">Show</button></div>
+            <div class="hint">From console.typesafe.ai/keys. Stored only in this browser profile and sent only to api.typesafe.ai. Anyone with access to this Chrome profile can read it.</div>
+          </div>
+        </div>
+        <div class="row">
+          <label class="rl" for="dailyCallLimit">Daily call limit</label>
+          <div class="rc">
+            <input id="dailyCallLimit" class="input" type="number" min="1" step="1" style="max-width:160px">
+            <div class="hint">One call per video per goal. TypeSafe has no per-key spending limit, so this is the only guard. <span id="callsToday"></span></div>
+          </div>
+        </div>
+      </div>
+      <div id="proxyFields">
+      <div class="row">
+        <label class="rl" for="proxyUrl">Scorer address</label>
+        <div class="rc"><input id="proxyUrl" class="input" type="url"></div>
+      </div>
+      <div class="row">
+        <label class="rl" for="proxySecret">Shared secret</label>
+        <div class="rc">
+          <div class="secret"><input id="proxySecret" type="password" class="input" autocomplete="off"><button class="pill text" id="reveal" type="button">Show</button></div>
+          <div class="hint">From <code>proxy_shared_secret</code> in your .env file</div>
+        </div>
+      </div>
+      </div>
+    </section>
+  </main>
+</div>
+<script src="shared/core.js"></script>
+<script src="pages.js"></script>
+<script src="options.js"></script>
+</body>
+</html>

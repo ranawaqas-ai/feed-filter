@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+.env
+.env.*
+!.env.example
+proxy/data/
+e2e/node_modules/
+e2e/profile/
+results/
+*.swp

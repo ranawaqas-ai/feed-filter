@@ -1,0 +1,9 @@
+{
+  "name": "yt-feed-filter-e2e",
+  "private": true,
+  "type": "module",
+  "description": "Capture and end-to-end checks for the YouTube feed filter, run in a separate Chrome for Testing profile.",
+  "dependencies": {
+    "puppeteer": "^25.17.0"
+  }
+}

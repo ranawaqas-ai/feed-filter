@@ -1,0 +1,482 @@
+[
+ {
+  "video": {
+   "videoId": "synthetic00",
+   "title": "Plain title",
+   "channel": "Channel 0",
+   "durationSeconds": null,
+   "viewCount": null,
+   "isShort": true,
+   "description": "A description."
+  },
+  "text": "Title: Plain title\nChannel: Channel 0\nDuration: unknown (Short)\nViews: unknown\nDescription: A description."
+ },
+ {
+  "video": {
+   "videoId": "synthetic01",
+   "title": "Ünïcödé — and \"quotes\"",
+   "channel": "Channel 1",
+   "durationSeconds": 0,
+   "viewCount": 0,
+   "isShort": false,
+   "description": ""
+  },
+  "text": "Title: Ünïcödé — and \"quotes\"\nChannel: Channel 1\nDuration: 0:00 (video)\nViews: 0"
+ },
+ {
+  "video": {
+   "videoId": "synthetic02",
+   "title": "Emoji 🎬 title",
+   "channel": "Channel 2",
+   "durationSeconds": 9,
+   "viewCount": 7,
+   "isShort": false,
+   "description": ""
+  },
+  "text": "Title: Emoji 🎬 title\nChannel: Channel 2\nDuration: 0:09 (video)\nViews: 7"
+ },
+ {
+  "video": {
+   "videoId": "synthetic03",
+   "title": "Line\nbreak",
+   "channel": "Channel 3",
+   "durationSeconds": 59,
+   "viewCount": 999,
+   "isShort": false,
+   "description": ""
+  },
+  "text": "Title: Line\nbreak\nChannel: Channel 3\nDuration: 0:59 (video)\nViews: 999"
+ },
+ {
+  "video": {
+   "videoId": "synthetic04",
+   "title": "  spaced  ",
+   "channel": "Channel 4",
+   "durationSeconds": 60,
+   "viewCount": 1000,
+   "isShort": false,
+   "description": "A description."
+  },
+  "text": "Title:   spaced  \nChannel: Channel 4\nDuration: 1:00 (video)\nViews: 1.0K\nDescription: A description."
+ },
+ {
+  "video": {
+   "videoId": "synthetic05",
+   "title": "Plain title",
+   "channel": "Channel 5",
+   "durationSeconds": 61,
+   "viewCount": 1049,
+   "isShort": true,
+   "description": ""
+  },
+  "text": "Title: Plain title\nChannel: Channel 5\nDuration: 1:01 (Short)\nViews: 1.0K"
+ },
+ {
+  "video": {
+   "videoId": "synthetic06",
+   "title": "Ünïcödé — and \"quotes\"",
+   "channel": "Channel 6",
+   "durationSeconds": 599,
+   "viewCount": 1050,
+   "isShort": false,
+   "description": ""
+  },
+  "text": "Title: Ünïcödé — and \"quotes\"\nChannel: Channel 6\nDuration: 9:59 (video)\nViews: 1.1K"
+ },
+ {
+  "video": {
+   "videoId": "synthetic07",
+   "title": "Emoji 🎬 title",
+   "channel": "Channel 0",
+   "durationSeconds": 3599,
+   "viewCount": 1051,
+   "isShort": false,
+   "description": ""
+  },
+  "text": "Title: Emoji 🎬 title\nChannel: Channel 0\nDuration: 59:59 (video)\nViews: 1.1K"
+ },
+ {
+  "video": {
+   "videoId": "synthetic08",
+   "title": "Line\nbreak",
+   "channel": "Channel 1",
+   "durationSeconds": 3600,
+   "viewCount": 12345,
+   "isShort": false,
+   "description": "A description."
+  },
+  "text": "Title: Line\nbreak\nChannel: Channel 1\nDuration: 1:00:00 (video)\nViews: 12.3K\nDescription: A description."
+ },
+ {
+  "video": {
+   "videoId": "synthetic09",
+   "title": "  spaced  ",
+   "channel": "Channel 2",
+   "durationSeconds": 3661,
+   "viewCount": 999499,
+   "isShort": false,
+   "description": ""
+  },
+  "text": "Title:   spaced  \nChannel: Channel 2\nDuration: 1:01:01 (video)\nViews: 999.5K"
+ },
+ {
+  "video": {
+   "videoId": "synthetic10",
+   "title": "Plain title",
+   "channel": "Channel 3",
+   "durationSeconds": 36000,
+   "viewCount": 999999,
+   "isShort": true,
+   "description": ""
+  },
+  "text": "Title: Plain title\nChannel: Channel 3\nDuration: 10:00:00 (Short)\nViews: 1000.0K"
+ },
+ {
+  "video": {
+   "videoId": "synthetic11",
+   "title": "Ünïcödé — and \"quotes\"",
+   "channel": "Channel 4",
+   "durationSeconds": 45296,
+   "viewCount": 1000000,
+   "isShort": false,
+   "description": ""
+  },
+  "text": "Title: Ünïcödé — and \"quotes\"\nChannel: Channel 4\nDuration: 12:34:56 (video)\nViews: 1.0M"
+ },
+ {
+  "video": {
+   "videoId": "synthetic12",
+   "title": "Emoji 🎬 title",
+   "channel": "Channel 5",
+   "durationSeconds": null,
+   "viewCount": 1049999,
+   "isShort": false,
+   "description": "A description."
+  },
+  "text": "Title: Emoji 🎬 title\nChannel: Channel 5\nDuration: unknown (video)\nViews: 1.0M\nDescription: A description."
+ },
+ {
+  "video": {
+   "videoId": "synthetic13",
+   "title": "Line\nbreak",
+   "channel": "Channel 6",
+   "durationSeconds": 0,
+   "viewCount": 1250000,
+   "isShort": false,
+   "description": ""
+  },
+  "text": "Title: Line\nbreak\nChannel: Channel 6\nDuration: 0:00 (video)\nViews: 1.2M"
+ },
+ {
+  "video": {
+   "videoId": "synthetic14",
+   "title": "  spaced  ",
+   "channel": "Channel 0",
+   "durationSeconds": 9,
+   "viewCount": 999999999,
+   "isShort": false,
+   "description": ""
+  },
+  "text": "Title:   spaced  \nChannel: Channel 0\nDuration: 0:09 (video)\nViews: 1000.0M"
+ },
+ {
+  "video": {
+   "videoId": "synthetic15",
+   "title": "Plain title",
+   "channel": "Channel 1",
+   "durationSeconds": 59,
+   "viewCount": 1000000000,
+   "isShort": true,
+   "description": ""
+  },
+  "text": "Title: Plain title\nChannel: Channel 1\nDuration: 0:59 (Short)\nViews: 1.0B"
+ },
+ {
+  "video": {
+   "videoId": "synthetic16",
+   "title": "Ünïcödé — and \"quotes\"",
+   "channel": "Channel 2",
+   "durationSeconds": 60,
+   "viewCount": 2345678901,
+   "isShort": false,
+   "description": "A description."
+  },
+  "text": "Title: Ünïcödé — and \"quotes\"\nChannel: Channel 2\nDuration: 1:00 (video)\nViews: 2.3B\nDescription: A description."
+ },
+ {
+  "video": {
+   "videoId": "synthetic17",
+   "title": "Emoji 🎬 title",
+   "channel": "Channel 3",
+   "durationSeconds": 61,
+   "viewCount": null,
+   "isShort": false,
+   "description": ""
+  },
+  "text": "Title: Emoji 🎬 title\nChannel: Channel 3\nDuration: 1:01 (video)\nViews: unknown"
+ },
+ {
+  "video": {
+   "videoId": "synthetic18",
+   "title": "Line\nbreak",
+   "channel": "Channel 4",
+   "durationSeconds": 599,
+   "viewCount": 0,
+   "isShort": false,
+   "description": ""
+  },
+  "text": "Title: Line\nbreak\nChannel: Channel 4\nDuration: 9:59 (video)\nViews: 0"
+ },
+ {
+  "video": {
+   "videoId": "synthetic19",
+   "title": "  spaced  ",
+   "channel": "Channel 5",
+   "durationSeconds": 3599,
+   "viewCount": 7,
+   "isShort": false,
+   "description": ""
+  },
+  "text": "Title:   spaced  \nChannel: Channel 5\nDuration: 59:59 (video)\nViews: 7"
+ },
+ {
+  "video": {
+   "videoId": "synthetic20",
+   "title": "Plain title",
+   "channel": "Channel 6",
+   "durationSeconds": 3600,
+   "viewCount": 999,
+   "isShort": true,
+   "description": "A description."
+  },
+  "text": "Title: Plain title\nChannel: Channel 6\nDuration: 1:00:00 (Short)\nViews: 999\nDescription: A description."
+ },
+ {
+  "video": {
+   "videoId": "synthetic21",
+   "title": "Ünïcödé — and \"quotes\"",
+   "channel": "Channel 0",
+   "durationSeconds": 3661,
+   "viewCount": 1000,
+   "isShort": false,
+   "description": ""
+  },
+  "text": "Title: Ünïcödé — and \"quotes\"\nChannel: Channel 0\nDuration: 1:01:01 (video)\nViews: 1.0K"
+ },
+ {
+  "video": {
+   "videoId": "synthetic22",
+   "title": "Emoji 🎬 title",
+   "channel": "Channel 1",
+   "durationSeconds": 36000,
+   "viewCount": 1049,
+   "isShort": false,
+   "description": ""
+  },
+  "text": "Title: Emoji 🎬 title\nChannel: Channel 1\nDuration: 10:00:00 (video)\nViews: 1.0K"
+ },
+ {
+  "video": {
+   "videoId": "synthetic23",
+   "title": "Line\nbreak",
+   "channel": "Channel 2",
+   "durationSeconds": 45296,
+   "viewCount": 1050,
+   "isShort": false,
+   "description": ""
+  },
+  "text": "Title: Line\nbreak\nChannel: Channel 2\nDuration: 12:34:56 (video)\nViews: 1.1K"
+ },
+ {
+  "video": {
+   "videoId": "synthetic24",
+   "title": "  spaced  ",
+   "channel": "Channel 3",
+   "durationSeconds": null,
+   "viewCount": 1051,
+   "isShort": false,
+   "description": "A description."
+  },
+  "text": "Title:   spaced  \nChannel: Channel 3\nDuration: unknown (video)\nViews: 1.1K\nDescription: A description."
+ },
+ {
+  "video": {
+   "videoId": "synthetic25",
+   "title": "Plain title",
+   "channel": "Channel 4",
+   "durationSeconds": 0,
+   "viewCount": 12345,
+   "isShort": true,
+   "description": ""
+  },
+  "text": "Title: Plain title\nChannel: Channel 4\nDuration: 0:00 (Short)\nViews: 12.3K"
+ },
+ {
+  "video": {
+   "videoId": "synthetic26",
+   "title": "Ünïcödé — and \"quotes\"",
+   "channel": "Channel 5",
+   "durationSeconds": 9,
+   "viewCount": 999499,
+   "isShort": false,
+   "description": ""
+  },
+  "text": "Title: Ünïcödé — and \"quotes\"\nChannel: Channel 5\nDuration: 0:09 (video)\nViews: 999.5K"
+ },
+ {
+  "video": {
+   "videoId": "synthetic27",
+   "title": "Emoji 🎬 title",
+   "channel": "Channel 6",
+   "durationSeconds": 59,
+   "viewCount": 999999,
+   "isShort": false,
+   "description": ""
+  },
+  "text": "Title: Emoji 🎬 title\nChannel: Channel 6\nDuration: 0:59 (video)\nViews: 1000.0K"
+ },
+ {
+  "video": {
+   "videoId": "synthetic28",
+   "title": "Line\nbreak",
+   "channel": "Channel 0",
+   "durationSeconds": 60,
+   "viewCount": 1000000,
+   "isShort": false,
+   "description": "A description."
+  },
+  "text": "Title: Line\nbreak\nChannel: Channel 0\nDuration: 1:00 (video)\nViews: 1.0M\nDescription: A description."
+ },
+ {
+  "video": {
+   "videoId": "synthetic29",
+   "title": "  spaced  ",
+   "channel": "Channel 1",
+   "durationSeconds": 61,
+   "viewCount": 1049999,
+   "isShort": false,
+   "description": ""
+  },
+  "text": "Title:   spaced  \nChannel: Channel 1\nDuration: 1:01 (video)\nViews: 1.0M"
+ },
+ {
+  "video": {
+   "videoId": "synthetic30",
+   "title": "Plain title",
+   "channel": "Channel 2",
+   "durationSeconds": 599,
+   "viewCount": 1250000,
+   "isShort": true,
+   "description": ""
+  },
+  "text": "Title: Plain title\nChannel: Channel 2\nDuration: 9:59 (Short)\nViews: 1.2M"
+ },
+ {
+  "video": {
+   "videoId": "synthetic31",
+   "title": "Ünïcödé — and \"quotes\"",
+   "channel": "Channel 3",
+   "durationSeconds": 3599,
+   "viewCount": 999999999,
+   "isShort": false,
+   "description": ""
+  },
+  "text": "Title: Ünïcödé — and \"quotes\"\nChannel: Channel 3\nDuration: 59:59 (video)\nViews: 1000.0M"
+ },
+ {
+  "video": {
+   "videoId": "synthetic32",
+   "title": "Emoji 🎬 title",
+   "channel": "Channel 4",
+   "durationSeconds": 3600,
+   "viewCount": 1000000000,
+   "isShort": false,
+   "description": "A description."
+  },
+  "text": "Title: Emoji 🎬 title\nChannel: Channel 4\nDuration: 1:00:00 (video)\nViews: 1.0B\nDescription: A description."
+ },
+ {
+  "video": {
+   "videoId": "synthetic33",
+   "title": "Line\nbreak",
+   "channel": "Channel 5",
+   "durationSeconds": 3661,
+   "viewCount": 2345678901,
+   "isShort": false,
+   "description": ""
+  },
+  "text": "Title: Line\nbreak\nChannel: Channel 5\nDuration: 1:01:01 (video)\nViews: 2.3B"
+ },
+ {
+  "video": {
+   "videoId": "synthetic34",
+   "title": "  spaced  ",
+   "channel": "Channel 6",
+   "durationSeconds": 36000,
+   "viewCount": null,
+   "isShort": false,
+   "description": ""
+  },
+  "text": "Title:   spaced  \nChannel: Channel 6\nDuration: 10:00:00 (video)\nViews: unknown"
+ },
+ {
+  "video": {
+   "videoId": "synthetic35",
+   "title": "Plain title",
+   "channel": "Channel 0",
+   "durationSeconds": 45296,
+   "viewCount": 0,
+   "isShort": true,
+   "description": ""
+  },
+  "text": "Title: Plain title\nChannel: Channel 0\nDuration: 12:34:56 (Short)\nViews: 0"
+ },
+ {
+  "video": {
+   "videoId": "synthetic36",
+   "title": "Ünïcödé — and \"quotes\"",
+   "channel": "Channel 1",
+   "durationSeconds": null,
+   "viewCount": 7,
+   "isShort": false,
+   "description": "A description."
+  },
+  "text": "Title: Ünïcödé — and \"quotes\"\nChannel: Channel 1\nDuration: unknown (video)\nViews: 7\nDescription: A description."
+ },
+ {
+  "video": {
+   "videoId": "synthetic37",
+   "title": "Emoji 🎬 title",
+   "channel": "Channel 2",
+   "durationSeconds": 0,
+   "viewCount": 999,
+   "isShort": false,
+   "description": ""
+  },
+  "text": "Title: Emoji 🎬 title\nChannel: Channel 2\nDuration: 0:00 (video)\nViews: 999"
+ },
+ {
+  "video": {
+   "videoId": "synthetic38",
+   "title": "Line\nbreak",
+   "channel": "Channel 3",
+   "durationSeconds": 9,
+   "viewCount": 1000,
+   "isShort": false,
+   "description": ""
+  },
+  "text": "Title: Line\nbreak\nChannel: Channel 3\nDuration: 0:09 (video)\nViews: 1.0K"
+ },
+ {
+  "video": {
+   "videoId": "synthetic39",
+   "title": "  spaced  ",
+   "channel": "Channel 4",
+   "durationSeconds": 59,
+   "viewCount": 1049,
+   "isShort": false,
+   "description": ""
+  },
+  "text": "Title:   spaced  \nChannel: Channel 4\nDuration: 0:59 (video)\nViews: 1.0K"
+ }
+]
