@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Feed Filter for YouTube</title>
+<meta name="description" content="A free, open-source Chrome extension that hides YouTube videos that don't serve your goals.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Ccircle cx='20' cy='20' r='20' fill='%23FF0000'/%3E%3Cpath d='M11 13h18l-7 8v6l-4 2v-8z' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Schibsted+Grotesk:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #ECEEF1; --card: #FFFFFF; --ink: #16181D; --muted: #5B6170; --line: #D5D9E0; --blue: #065FD4;
+    --font: "Schibsted Grotesk", system-ui, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --paper: #15171B; --card: #1F2228; --ink: #EEF0F3; --muted: #9AA0AC; --line: #30343C; --blue: #3EA6FF; }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font: 400 18px/1.5 var(--font); }
+  a { color: inherit; }
+  :focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; border-radius: 4px; }
+
+  /* One screen: the pitch on the left, the feed being filtered on the right. */
+  .page { height: 100svh; min-height: 560px; display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 56px; padding: 28px 48px; max-width: 1440px; margin: 0 auto; }
+  .pitch { display: flex; flex-direction: column; min-height: 0; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; }
+  .say { margin: auto 0; padding: 24px 0; }
+  h1 { font-size: clamp(36px, 4.6vw, 68px); line-height: 0.98; letter-spacing: -0.035em; font-weight: 800; margin: 0 0 24px; }
+  .lede { font-size: clamp(17px, 1.5vw, 21px); color: var(--muted); margin: 0 0 32px; max-width: 30em; }
+  .ctas { display: flex; gap: 12px; flex-wrap: wrap; }
+  .btn { display: inline-flex; align-items: center; height: 48px; padding: 0 22px; border-radius: 24px; font-weight: 500; font-size: 17px; text-decoration: none; }
+  .btn.primary { background: var(--ink); color: var(--paper); }
+  .btn.primary:hover { opacity: 0.88; }
+  .btn.plain { border: 1.5px solid var(--line); }
+  .btn.plain:hover { border-color: var(--ink); }
+  .fine { color: var(--muted); font-size: 14px; line-height: 1.45; margin: 0; max-width: 38em; }
+  .fine a { color: var(--ink); }
+
+  .show { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+  .stage { flex: 1; min-height: 0; position: relative; }
+  .result { margin: 16px 0 0; min-height: 2.4em; font-size: clamp(18px, 1.7vw, 24px); line-height: 1.2; letter-spacing: -0.02em; font-weight: 700; text-align: center; opacity: 0; transition: opacity 0.6s ease 0.3s; }
+  .result span { color: var(--muted); }
+  .result.on { opacity: 1; }
+
+  /* The demo: YouTube's home page layout, with made-up videos, run through the filter. */
+  .demo { position: absolute; left: 0; top: 0; width: 860px; transform-origin: 0 0; border: 1px solid var(--line); border-radius: 16px; overflow: hidden;
+    --yt-bg: #FFFFFF; --yt-text: #0F0F0F; --yt-text2: #606060; --yt-chip: #F2F2F2; --yt-line: #D3D3D3; --yt-search: #F8F8F8; --yt-blue: #065FD4;
+    background: var(--yt-bg); color: var(--yt-text); font-family: Roboto, Arial, sans-serif; }
+  @media (prefers-color-scheme: dark) {
+    .demo { --yt-bg: #0F0F0F; --yt-text: #F1F1F1; --yt-text2: #AAAAAA; --yt-chip: #272727; --yt-line: #303030; --yt-search: #222222; --yt-blue: #3EA6FF; }
+  }
+  .yt-top { height: 56px; display: flex; align-items: center; gap: 16px; padding: 0 16px; }
+  .yt-top svg, .yt-guide svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.6; flex: none; }
+  .yt-site { display: flex; align-items: center; gap: 2px; flex: none; font: 700 20px/1 "Arial Narrow", "Roboto Condensed", Arial, sans-serif; letter-spacing: -1.2px; color: var(--yt-text); }
+  .yt-top .yt-site svg { width: 29px; height: 20px; stroke: none; }
+  .yt-search { flex: 1; display: flex; justify-content: center; align-items: center; gap: 12px; min-width: 0; }
+  .yt-box { display: flex; width: min(100%, 540px); height: 40px; }
+  .yt-box > span { flex: 1; min-width: 0; border: 1px solid var(--yt-line); border-right: 0; border-radius: 20px 0 0 20px; padding: 0 16px; display: flex; align-items: center; color: var(--yt-text2); font-size: 16px; }
+  .yt-box > i { width: 64px; border: 1px solid var(--yt-line); border-radius: 0 20px 20px 0; background: var(--yt-search); display: grid; place-items: center; }
+  .yt-round { width: 40px; height: 40px; border-radius: 20px; background: var(--yt-chip); display: grid; place-items: center; flex: none; }
+  .yt-me { width: 32px; height: 32px; border-radius: 16px; background: #7B5EA7; color: #fff; font-size: 14px; font-weight: 500; display: grid; place-items: center; flex: none; }
+  .yt-body { display: flex; }
+  .yt-guide { width: 72px; flex: none; padding: 0 4px; }
+  .yt-guide div { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 16px 0 14px; font-size: 10px; border-radius: 10px; }
+  .yt-main { flex: 1; min-width: 0; padding: 0 24px 24px; }
+  .yt-chips { display: flex; gap: 12px; padding: 12px 0; overflow: hidden; }
+  .yt-chips span { height: 32px; padding: 0 12px; border-radius: 8px; background: var(--yt-chip); font-size: 14px; font-weight: 500; line-height: 32px; white-space: nowrap; }
+  .yt-chips span:first-child { background: var(--yt-text); color: var(--yt-bg); }
+  .replay { margin-left: auto; background: none; border: 0; padding: 0 4px; height: 32px; font: 500 14px Roboto, Arial, sans-serif; color: var(--yt-blue); cursor: pointer; white-space: nowrap; }
+  .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 40px 16px; align-content: start; padding-top: 12px; }
+  .v { position: relative; transition: opacity 0.5s ease, filter 0.5s ease; }
+  .v.gone { display: none; }
+  .thumb { aspect-ratio: 16 / 9; border-radius: 12px; position: relative; overflow: hidden; container-type: inline-size; }
+  .thumb.bait { background: var(--t); display: grid; place-items: center; }
+  .shout { color: #fff; font: 800 13cqw/0.95 var(--font); letter-spacing: -0.03em; text-align: center; padding: 0 8%; transform: rotate(-4deg); text-shadow: 0 0.06em 0 rgba(0, 0, 0, 0.35); }
+  .thumb.code { background: #1B2030; padding: 22% 10% 0; display: grid; align-content: start; gap: 7%; }
+  .thumb.code i { display: block; height: 5cqw; border-radius: 3px; background: var(--c); width: var(--w); margin-left: var(--in, 0); }
+  .dur { position: absolute; right: 8px; bottom: 8px; background: rgba(0,0,0,0.6); color: #fff; font-size: 12px; font-weight: 500; line-height: 18px; padding: 1px 4px; border-radius: 4px; z-index: 1; }
+  .badge { position: absolute; left: 8px; top: 8px; background: #065FD4; color: #fff; font-size: 12px; font-weight: 500; line-height: 18px; letter-spacing: 0.3px; padding: 1px 6px; border-radius: 4px; z-index: 1; opacity: 0; transition: opacity 0.3s; }
+  .pill { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.6); color: #fff; font-size: 12px; font-weight: 500; padding: 4px 8px; border-radius: 4px; z-index: 1; white-space: nowrap; }
+  .meta { display: flex; gap: 12px; margin-top: 12px; }
+  .meta .av { width: 36px; height: 36px; border-radius: 18px; background: var(--a); flex: none; }
+  .meta .tx { flex: 1; min-width: 0; }
+  .meta .t { font-size: 16px; line-height: 22px; font-weight: 500; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .meta .c { color: var(--yt-text2); font-size: 14px; line-height: 20px; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .meta .c + .c { margin-top: 0; }
+  .meta .dots { width: 24px; height: 24px; flex: none; fill: currentColor; margin-right: -8px; }
+  .v.pending .thumb, .v.pending .meta { filter: blur(14px) grayscale(0.6); }
+  .v.on .thumb { outline: 2px solid var(--yt-blue); outline-offset: 4px; }
+  .v.on .badge { opacity: 1; }
+  .v.off { opacity: 0.1; filter: grayscale(1); }
+  .v:not(.pending) .pill { display: none; }
+  .v.raw .badge { opacity: 0; }
+
+  @media (max-width: 899px) {
+    .page { height: auto; min-height: 100svh; grid-template-columns: minmax(0, 1fr); gap: 14px; padding: 16px 16px 12px; }
+    .say { margin: 0; padding: 12px 0 0; }
+    h1 { font-size: clamp(34px, 9.5vw, 48px); margin-bottom: 16px; }
+    .lede { margin-bottom: 16px; font-size: 16px; }
+    .pitch .fine { display: none; }
+    .stage { flex: none; }
+    .result { margin-top: 10px; min-height: 0; font-size: 17px; }
+    .show .fine { font-size: 12px; margin-top: 8px; text-align: center; }
+  }
+  @media (min-width: 900px) { .show .fine { display: none; } }
+  @media (prefers-reduced-motion: reduce) { .v, .badge, .result { transition: none; } }
+</style>
+</head>
+<body>
+<main class="page">
+  <div class="pitch">
+    <div class="brand">
+      <svg width="28" height="28" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="20" fill="#FF0000"/><path d="M11 13h18l-7 8v6l-4 2v-8z" fill="#fff"/></svg>
+      Feed Filter
+    </div>
+    <div class="say">
+      <h1>You opened YouTube to learn something.</h1>
+      <p class="lede">Then the feed offered a cat video, and you lost the hour. The algorithm is built to win that fight. Feed Filter hides everything that doesn't serve your goals, so there's nothing left to resist.</p>
+      <div class="ctas">
+        <a class="btn primary" href="https://github.com/ranawaqas-ai/feed-filter">Get Feed Filter</a>
+        <a class="btn plain" href="how.html">How it works</a>
+      </div>
+    </div>
+    <p class="fine">Free and open source Chrome extension. Scoring runs on your own TypeSafe key. Not affiliated with YouTube or Google.</p>
+  </div>
+
+  <div class="show">
+    <div class="stage" id="stage">
+      <div class="demo" id="demo" role="group" aria-label="Illustration: a YouTube home page where six of nine videos are distractions. Feed Filter checks each one and leaves the three that fit the goal Learning to code.">
+      <div class="yt-top" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+        <span class="yt-site"><svg viewBox="0 0 28.57 20"><path fill="#FF0000" d="M27.9727 3.12324C27.6435 1.89323 26.6768 0.926623 25.4468 0.597366C23.2197 0 14.285 0 14.285 0C14.285 0 5.35042 0 3.12323 0.597366C1.89323 0.926623 0.926623 1.89323 0.597366 3.12324C0 5.35042 0 10 0 10C0 10 0 14.6496 0.597366 16.8768C0.926623 18.1068 1.89323 19.0734 3.12323 19.4026C5.35042 20 14.285 20 14.285 20C14.285 20 23.2197 20 25.4468 19.4026C26.6768 19.0734 27.6435 18.1068 27.9727 16.8768C28.5701 14.6496 28.5701 10 28.5701 10C28.5701 10 28.5677 5.35042 27.9727 3.12324Z"/><path fill="#FFFFFF" d="M11.4253 14.2854L18.8477 10.0004L11.4253 5.71533V14.2854Z"/></svg>YouTube</span>
+        <div class="yt-search">
+          <div class="yt-box"><span>Search</span><i><svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21"/></svg></i></div>
+          <span class="yt-round"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></span>
+        </div>
+        <svg viewBox="0 0 24 24"><path d="M6 17h12l-1.5-2.5V10a4.5 4.5 0 0 0-9 0v4.5zM10 20h4"/></svg>
+        <span class="yt-me">F</span>
+      </div>
+      <div class="yt-body">
+        <div class="yt-guide" aria-hidden="true">
+          <div><svg viewBox="0 0 24 24" style="fill:currentColor;stroke:none"><path d="M4 21V10l8-6 8 6v11h-6v-6h-4v6z"/></svg>Home</div>
+          <div><svg viewBox="0 0 24 24"><path d="M8 4.5l8 3.2a2.6 2.6 0 0 1 .2 4.7L14 13.5l2 .8a2.6 2.6 0 0 1 .2 4.7l-4.2 2a4 4 0 0 1-3.6-7.1L10 13l-2-.9a2.6 2.6 0 0 1-.2-4.6z"/></svg>Shorts</div>
+          <div><svg viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="12" rx="2.5"/><path d="M6 5h12M10 11.5v5l4.5-2.5z"/></svg>Subscriptions</div>
+          <div><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="10" r="3"/><path d="M6.5 18a6.5 6.5 0 0 1 11 0"/></svg>You</div>
+        </div>
+        <div class="yt-main">
+          <div class="yt-chips"><span>All</span><span>Music</span><span>Gaming</span><span>Live</span><span>News</span><span>Comedy</span><span>Recently uploaded</span><button class="replay" type="button" id="replay">Replay</button></div>
+          <div class="grid" id="grid"></div>
+        </div>
+      </div>
+      </div>
+    </div>
+    <p class="result" id="result">3 of 9 videos fit your goal. <span>The other 6 never reach you.</span></p>
+    <p class="fine">Free and open source Chrome extension. Scoring runs on your own TypeSafe key. Not affiliated with YouTube or Google.</p>
+  </div>
+</main>
+
+<script>
+  // Made-up videos for the illustration; "on" ones match the goal "Learning to code".
+  const VIDEOS = [
+    { t: "Build a hash map from scratch in C", c: "Systems Workshop", m: "48K views · 3 weeks ago", d: "34:10", on: true },
+    { t: "I ate only gas station food for a week", c: "Snack Lab", m: "2.1M views · 4 days ago", d: "18:02", shout: "I ate WHAT?!", tint: "#E5484D" },
+    { t: "This cat has never seen a cucumber", c: "Whisker Clips", m: "9.4M views · 1 month ago", d: "0:47", shout: "Cat vs cucumber", tint: "#F5A524" },
+    { t: "Top 10 car fails of the month", c: "Motor Mayhem", m: "812K views · 6 days ago", d: "9:58", shout: "Top 10 fails", tint: "#8B5CF6" },
+    { t: "Writing a tiny interpreter in Python, part 1", c: "Code With Lena", m: "126K views · 2 months ago", d: "52:31", on: true },
+    { t: "Big tech layoffs: it's worse than you think", c: "Daily Tech Wrap", m: "356K views · 9 hours ago", d: "11:45", shout: "It's over", tint: "#EC4899" },
+    { t: "He pranked his whole office (gone wrong)", c: "Prank Factory", m: "5.7M views · 2 weeks ago", d: "14:20", shout: "Gone wrong", tint: "#0EA5E9" },
+    { t: "Reacting to the worst takes this week", c: "Hot Take Hub", m: "1.3M views · 1 day ago", d: "22:08", shout: "Worst takes", tint: "#F97316" },
+    { t: "Git internals: how commits are really stored", c: "Plain Engineering", m: "73K views · 5 months ago", d: "27:40", on: true },
+  ];
+  const CODE = ["#7AA2F7", "#9ECE6A", "#E0AF68", "#BB9AF7"];
+  const AVATARS = ["#5B8DEF", "#E5484D", "#F5A524", "#8B5CF6", "#2BA640", "#EC4899", "#0EA5E9", "#F97316", "#606060"];
+  const codeLines = (seed) => [62, 44, 70, 38].map((w, i) =>
+    `<i style="--w:${w - ((seed * 7 + i * 5) % 18)}%;--c:${CODE[(seed + i) % 4]};--in:${i === 1 || i === 2 ? "12%" : "0"}"></i>`).join("");
+  const grid = document.getElementById("grid");
+  grid.innerHTML = VIDEOS.map((v, n) => `
+    <article class="v raw" data-on="${v.on ? 1 : 0}">
+      <div class="thumb ${v.on ? "code" : "bait"}" ${v.on ? "" : `style="--t:${v.tint}"`}>${v.on ? codeLines(n) : `<span class="shout">${v.shout}</span>`}<span class="dur">${v.d}</span><span class="badge">ON GOAL</span><span class="pill">Checking…</span></div>
+      <div class="meta"><span class="av" style="--a:${AVATARS[n]}"></span><div class="tx"><div class="t">${v.t}</div><div class="c">${v.c}</div><div class="c">${v.m}</div></div>
+        <svg class="dots" viewBox="0 0 24 24"><circle cx="12" cy="5.5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="18.5" r="1.6"/></svg></div>
+    </article>`).join("");
+
+  const cards = [...grid.querySelectorAll(".v")];
+  const stage = document.getElementById("stage");
+  const demo = document.getElementById("demo");
+  const result = document.getElementById("result");
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const stacked = matchMedia("(max-width: 899px)");
+  let timers = [];
+
+  // The feed is drawn at a fixed 860px and scaled to fit its space, so the whole page stays
+  // on one screen. Its height is fixed too, so nothing moves when cards leave.
+  const naturalHeight = demo.offsetHeight;
+  demo.style.height = `${naturalHeight}px`;
+  function fit() {
+    const w = stage.clientWidth;
+    if (stacked.matches) {
+      const k = Math.min(1, w / 860);
+      stage.style.height = `${naturalHeight * k}px`;
+      demo.style.transform = `translate(${(w - 860 * k) / 2}px, 0) scale(${k})`;
+      return;
+    }
+    stage.style.height = "";
+    const h = stage.clientHeight;
+    const k = Math.min(1, w / 860, h / naturalHeight);
+    demo.style.transform = `translate(${(w - 860 * k) / 2}px, ${(h - naturalHeight * k) / 2}px) scale(${k})`;
+  }
+  addEventListener("resize", fit);
+  fit();
+
+  // Rejected cards leave and the kept ones slide together, as the real feed reflows.
+  function collapse(animate) {
+    const before = new Map(cards.map((c) => [c, c.getBoundingClientRect()]));
+    const k = demo.getBoundingClientRect().width / 860;
+    cards.forEach((c) => { if (c.dataset.on !== "1") c.classList.add("gone"); });
+    if (animate) {
+      for (const c of cards) {
+        if (c.dataset.on !== "1") continue;
+        const a = before.get(c);
+        const b = c.getBoundingClientRect();
+        c.animate([{ transform: `translate(${(a.left - b.left) / k}px, ${(a.top - b.top) / k}px)` }, { transform: "none" }],
+          { duration: 550, easing: "cubic-bezier(0.2, 0.8, 0.2, 1)" });
+      }
+    }
+    result.classList.add("on");
+  }
+
+  function play() {
+    timers.forEach(clearTimeout);
+    timers = [];
+    result.classList.remove("on");
+    cards.forEach((el) => { el.className = "v raw"; });
+    if (reduce) {
+      cards.forEach((el) => { el.className = `v ${el.dataset.on === "1" ? "on" : "off"}`; });
+      collapse(false);
+      return;
+    }
+    // First the feed as YouTube offers it, then the blur while each card is checked, then
+    // verdicts landing out of order, as they do on a real feed.
+    const RAW = 1600, CHECK = 700, STEP = 240;
+    timers.push(setTimeout(() => cards.forEach((el) => { el.className = "v pending"; }), RAW));
+    const order = [3, 0, 5, 8, 1, 6, 2, 7, 4];
+    order.forEach((i, n) => {
+      const el = cards[i];
+      timers.push(setTimeout(() => { el.className = `v ${el.dataset.on === "1" ? "on" : "off"}`; }, RAW + CHECK + n * STEP));
+    });
+    const END = RAW + CHECK + order.length * STEP + 800;
+    timers.push(setTimeout(() => collapse(true), END));
+    // Loops, so a visitor who looked away still sees it; the result holds long enough to read.
+    timers.push(setTimeout(play, END + 5000));
+  }
+  document.getElementById("replay").addEventListener("click", play);
+  play();
+</script>
+</body>
+</html>

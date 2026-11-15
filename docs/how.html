@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How Feed Filter works</title>
+<meta name="description" content="How Feed Filter decides what to show, how to install it, what it costs and what leaves your browser.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Ccircle cx='20' cy='20' r='20' fill='%23FF0000'/%3E%3Cpath d='M11 13h18l-7 8v6l-4 2v-8z' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #ECEEF1; --card: #FFFFFF; --ink: #16181D; --muted: #5B6170; --line: #D5D9E0; --blue: #065FD4;
+    --font: "Schibsted Grotesk", system-ui, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --paper: #15171B; --card: #1F2228; --ink: #EEF0F3; --muted: #9AA0AC; --line: #30343C; --blue: #3EA6FF; }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font: 400 18px/1.55 var(--font); }
+  a { color: inherit; }
+  :focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; border-radius: 4px; }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 28px 24px 72px; }
+  .brand { display: inline-flex; align-items: center; gap: 10px; font-weight: 700; text-decoration: none; }
+  h1 { font-size: clamp(36px, 6vw, 56px); line-height: 1; letter-spacing: -0.035em; font-weight: 800; margin: 56px 0 8px; }
+  h2 { font-size: 26px; line-height: 1.15; letter-spacing: -0.02em; font-weight: 700; margin: 56px 0 12px; }
+  p { margin: 0 0 14px; }
+  ol.steps { list-style: none; counter-reset: s; padding: 0; margin: 20px 0 0; display: grid; gap: 18px; }
+  ol.steps li { counter-increment: s; display: grid; grid-template-columns: 44px 1fr; align-items: start; }
+  ol.steps li::before { content: counter(s); width: 32px; height: 32px; border-radius: 16px; background: var(--ink); color: var(--paper); font-weight: 700; font-size: 15px; display: grid; place-items: center; margin-top: 1px; }
+  code { font: 500 0.88em ui-monospace, Menlo, monospace; background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; }
+  .btn { display: inline-flex; align-items: center; height: 48px; padding: 0 22px; border-radius: 24px; font-weight: 500; font-size: 17px; text-decoration: none; background: var(--ink); color: var(--paper); margin-top: 40px; }
+  .btn:hover { opacity: 0.88; }
+  footer { margin-top: 64px; padding-top: 24px; border-top: 1px solid var(--line); color: var(--muted); font-size: 15px; }
+  @media (max-width: 520px) { body { font-size: 17px; } .wrap { padding: 20px 16px 56px; } h1 { margin-top: 36px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="brand" href="index.html">
+    <svg width="28" height="28" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="20" fill="#FF0000"/><path d="M11 13h18l-7 8v6l-4 2v-8z" fill="#fff"/></svg>
+    Feed Filter
+  </a>
+
+  <main>
+    <h1>How it works</h1>
+
+    <h2>What it does</h2>
+    <p>You write your goals in plain words. On YouTube's home feed and sidebar, every video starts blurred. The extension sends its title, channel, length and view count to <a href="https://docs.typesafe.ai">Jev</a>, a TypeSafe model that answers one question: does this video serve this goal?</p>
+    <p>Clear matches get an <b>On goal</b> badge. Clear misses are removed. Anything in between is shown as usual.</p>
+
+    <h2>You stay in control</h2>
+    <p>You can reveal what was filtered and see why. Any video can be kept or hidden by hand from its three-dot menu. Shorts, playlists and ads can be removed without scoring, and so can whole channels or languages.</p>
+    <p>When most of what YouTube offers is rejected, a notice above the feed says so and gives you a search for each goal. What you watch next shapes what YouTube recommends after.</p>
+    <p>A dashboard shows what got through, by goal and over time.</p>
+
+    <h2 id="install">Install</h2>
+    <ol class="steps">
+      <li><div>Download the <a href="https://github.com/ranawaqas-ai/feed-filter">repository</a> and unzip it.</div></li>
+      <li><div>Open <code>chrome://extensions</code>, turn on Developer mode, choose <b>Load unpacked</b> and pick the <code>extension</code> folder.</div></li>
+      <li><div>In the setup page that opens, paste a key from <a href="https://console.typesafe.ai/keys">console.typesafe.ai</a>, write your goals and set a daily limit.</div></li>
+    </ol>
+    <p style="margin-top:18px">Until setup is saved, YouTube looks as usual. Desktop Chrome only.</p>
+
+    <h2>What it costs</h2>
+    <p>The extension is free. Scoring uses your own TypeSafe key: one call per video per goal, with scores cached for 30 days. A long evening with three goals can use a few thousand calls. You set a daily limit, and past it new videos stay blurred until the next day.</p>
+
+    <h2>What leaves your browser</h2>
+    <p>Each video's title, channel, length and view count, with your goal text, sent to TypeSafe. No cookies, account details or watch history. Your key, scores and history stay in your Chrome profile.</p>
+
+    <a class="btn" href="https://github.com/ranawaqas-ai/feed-filter">Get Feed Filter</a>
+  </main>
+
+  <footer>MIT licensed, <a href="https://github.com/ranawaqas-ai/feed-filter">source on GitHub</a>. Not affiliated with YouTube or Google.</footer>
+</div>
+</body>
+</html>
