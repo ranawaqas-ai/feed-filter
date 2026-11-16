@@ -165,6 +165,7 @@
       return;
     }
     if (!meta.videoId) return apply(host, "error", "could not read this card", "rule");
+    if (meta.title) cardMeta.set(meta.videoId, { title: meta.title, channel: meta.channel || "" });
     const hit = pCache.get(`${Y.goalsKey(goals())}|${meta.videoId}`);
     if (hit) {
       const d = Y.decideScored(meta, settings, hit.p, hit.goalId);
@@ -577,8 +578,35 @@
     }
   }
 
+  // ---- watched videos ----------------------------------------------------------------------
+  // A watch page that stays open for WATCH_MS is logged (id, title, channel) in the browser.
+  // The dashboard's feed profile counts them per topic.
+  const WATCH_MS = 10000;
+  const cardMeta = new Map(); // videoId -> {title, channel}, from the cards scored in this tab
+  let watchTimer = null;
+  const watchPageId = () => (location.pathname === "/watch" ? new URLSearchParams(location.search).get("v") : null);
+
+  function noteWatchPage() {
+    clearTimeout(watchTimer);
+    const videoId = watchPageId();
+    if (!videoId || !Y.VIDEO_ID.test(videoId)) return;
+    watchTimer = setTimeout(() => {
+      if (watchPageId() !== videoId || tabOff()) return;
+      const known = cardMeta.get(videoId) || {};
+      const owner = document.querySelector("ytd-watch-metadata ytd-channel-name a");
+      const title = known.title || document.title.replace(/^\(\d+\) /, "").replace(/ - YouTube$/, "");
+      if (!title || title === "YouTube") return;
+      try {
+        chrome.runtime.sendMessage({ type: "watched", video: { videoId, title, channel: known.channel || (owner ? owner.textContent.trim() : "") } }).catch(() => {});
+      } catch (err) {
+        // The extension was reloaded and this script is orphaned.
+      }
+    }, WATCH_MS);
+  }
+
   // ---- wiring -----------------------------------------------------------------------------
   function resetForNavigation() {
+    noteWatchPage();
     pages.clear();
     consecutiveEmpty = 0;
     driftActive = false;
@@ -662,6 +690,7 @@
     document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeMenus(); });
     setInterval(scanSoon, 500); // catches DOM-fallback timeouts and quiet re-renders
     scanSoon();
+    noteWatchPage();
   }
 
   start();

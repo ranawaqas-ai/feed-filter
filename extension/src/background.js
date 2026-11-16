@@ -1,8 +1,9 @@
 // Service worker: the only part of the extension that reads the Jev key or calls Jev.
-// Content scripts and pages send it {type: "judge" | "feedback" | "health" | "usage" | "tally" | "stats" | "counts"}.
+// Content scripts and pages send it {type: "judge" | "feedback" | "health" | "usage" | "tally" | "stats" | "counts" |
+// "watched" | "profile" | "topics" | "topicsHealth"}. It also holds the Anthropic key and groups titles into topics weekly.
 // Scores, the daily counter and the verdict log live in IndexedDB (localstore.js). Per-tab
 // counts live in chrome.storage.session because the worker can be stopped at any time.
-importScripts("shared/core.js", "direct.js", "localstore.js");
+importScripts("shared/core.js", "direct.js", "localstore.js", "topics.js");
 
 async function getSettings() {
   const { settings } = await chrome.storage.local.get("settings");
@@ -80,9 +81,57 @@ function recordTally(id, reason) {
   return tallyChain;
 }
 
+// ---- feed profile: titles from the local log, grouped into topics by Claude once a week ----
+const TOPICS_ALARM = "topics";
+const WEEK_MINUTES = 7 * 24 * 60;
+const topicClient = (s) => new self.YFFTopics.TopicClient({ apiKey: s.anthropicKey, fetch: self.fetch.bind(self) });
+const profileSince = () => self.YFF.localDay(new Date(Date.now() - (self.YFF.PROFILE.days - 1) * 86400000));
+
+async function runTopics(s) {
+  if (!s.anthropicKey) return { error: "no Anthropic key set" };
+  const Y = self.YFF;
+  const today = Y.localDay(new Date());
+  const since = profileSince();
+  const data = await localStore.profileData(since);
+  const items = Y.profileItems(data.rows, data.watched);
+  if (items.length < Y.PROFILE.minItems) return { error: `only ${items.length} videos logged so far` };
+  try {
+    const out = await topicClient(s).group(Y.profileLines(items), data.result ? data.result.topics.map((t) => t.name) : []);
+    const topics = Y.topicsFromReply(out.text, items);
+    // When the list was not cut at the cap, everything since `since` was sent.
+    const oldestDay = items.length < Y.PROFILE.maxItems ? since : items[items.length - 1].day;
+    await localStore.putTopics({ day: today, ranAt: Date.now(), oldestDay, sent: items.length, usage: out.usage, topics }, null);
+    return { ok: true, sent: items.length, usage: out.usage };
+  } catch (err) {
+    const text = err.code ? self.YFFTopics.errorText(err.code) : String(err.message || err);
+    await localStore.putTopics(null, { day: today, text });
+    return { error: text };
+  }
+}
+
+// One run at a time: the alarm and the Refresh button can ask together.
+let topicsRunning = null;
+function refreshTopics(s) {
+  if (!topicsRunning) topicsRunning = runTopics(s).finally(() => { topicsRunning = null; });
+  return topicsRunning;
+}
+
+chrome.alarms.get(TOPICS_ALARM, (alarm) => {
+  if (!alarm) chrome.alarms.create(TOPICS_ALARM, { delayInMinutes: 5, periodInMinutes: WEEK_MINUTES });
+});
+chrome.alarms.onAlarm.addListener(async (alarm) => {
+  if (alarm.name !== TOPICS_ALARM) return;
+  const s = await getSettings();
+  if (!s.anthropicKey) return;
+  const { result } = await localStore.profileData(profileSince());
+  // The alarm can fire early after a restart; a run in the last six days is recent enough.
+  if (result && Date.now() - result.ranAt < 6 * 86400000) return;
+  await refreshTopics(s);
+});
+
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   (async () => {
-    const s = { ...(await getSettings()), ...(msg.type === "health" ? msg.unsaved || {} : {}) };
+    const s = { ...(await getSettings()), ...(msg.type === "health" || msg.type === "topicsHealth" ? msg.unsaved || {} : {}) };
     switch (msg.type) {
       case "judge":
         return judgeRequest(s, msg.body);
@@ -97,6 +146,14 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         return { ok: true };
       case "stats":
         return localStore.stats(Math.min(Math.max(msg.days || 14, 1), 90));
+      case "watched":
+        return msg.video && self.YFF.VIDEO_ID.test(msg.video.videoId) ? localStore.logWatched(self.YFF.localDay(new Date()), msg.video) : { error: "no video" };
+      case "profile":
+        return { ...(await localStore.profileData(profileSince())), today: self.YFF.localDay(new Date()), hasKey: !!s.anthropicKey, running: !!topicsRunning };
+      case "topics":
+        return refreshTopics(s);
+      case "topicsHealth":
+        return s.anthropicKey ? topicClient(s).check() : { error: "no Anthropic key set" };
       case "counts":
         await setCounts(sender.tab && sender.tab.id, msg.counts, msg.off);
         return { ok: true };

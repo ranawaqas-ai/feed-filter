@@ -1,11 +1,12 @@
 // The scorer's storage, in IndexedDB: the p cache, the daily call counter, the verdict log
-// (one row per local day and video) and Keep/Hide feedback. stats() returns the rows the
-// dashboard aggregates. Nothing here leaves the browser.
+// (one row per local day and video), Keep/Hide feedback, the videos opened on YouTube and the
+// last topic grouping. stats() returns the rows the dashboard aggregates. The stores never leave
+// the browser; topics.js sends titles and channels from them to the topic model once a week.
 (function (root) {
   "use strict";
 
   const DB_NAME = "feed-filter";
-  const DB_VERSION = 1;
+  const DB_VERSION = 2; // 2 adds "watched"
   const KEEP_DAYS = 30;
 
   // ---- pure parts, unit-tested against test/stats_fixture.json --------------------------
@@ -63,11 +64,13 @@
         const open = this.idb.open(DB_NAME, DB_VERSION);
         open.onupgradeneeded = () => {
           const db = open.result;
-          db.createObjectStore("cache").createIndex("createdAt", "createdAt");
-          db.createObjectStore("usage");
-          db.createObjectStore("days").createIndex("day", "day");
-          db.createObjectStore("feedback", { autoIncrement: true }).createIndex("ts", "ts");
-          db.createObjectStore("meta");
+          const has = (name) => db.objectStoreNames.contains(name);
+          if (!has("cache")) db.createObjectStore("cache").createIndex("createdAt", "createdAt");
+          if (!has("usage")) db.createObjectStore("usage");
+          if (!has("days")) db.createObjectStore("days").createIndex("day", "day");
+          if (!has("feedback")) db.createObjectStore("feedback", { autoIncrement: true }).createIndex("ts", "ts");
+          if (!has("meta")) db.createObjectStore("meta");
+          if (!has("watched")) db.createObjectStore("watched").createIndex("day", "day");
         };
         this.dbPromise = req(open);
       }
@@ -128,6 +131,36 @@
       return { ok: true };
     }
 
+    // One row per local day and video opened on a watch page.
+    async logWatched(day, video) {
+      const db = await this.db();
+      const tx = db.transaction("watched", "readwrite");
+      tx.objectStore("watched").put({ day, videoId: video.videoId, title: video.title || "", channel: video.channel || "" }, `${day}|${video.videoId}`);
+      await done(tx);
+      return { ok: true };
+    }
+
+    // What the feed profile is counted from: log rows and watched videos since `since`, and
+    // the last topic grouping with the error of the last failed run, if any.
+    async profileData(since) {
+      const db = await this.db();
+      const tx = db.transaction(["days", "watched", "meta"]);
+      const range = IDBKeyRange.lowerBound(since);
+      const [rows, watched, result, error] = await Promise.all([
+        req(tx.objectStore("days").index("day").getAll(range)), req(tx.objectStore("watched").index("day").getAll(range)),
+        req(tx.objectStore("meta").get("topics")), req(tx.objectStore("meta").get("topicsError"))]);
+      return { rows, watched, result: result || null, error: error || null };
+    }
+
+    async putTopics(result, error) {
+      const db = await this.db();
+      const tx = db.transaction("meta", "readwrite");
+      if (result) tx.objectStore("meta").put(result, "topics");
+      if (error) tx.objectStore("meta").put(error, "topicsError");
+      else tx.objectStore("meta").delete("topicsError");
+      await done(tx);
+    }
+
     async stats(days, today = new Date()) {
       const db = await this.db();
       const tx = db.transaction(["days", "feedback", "meta"]);
@@ -142,11 +175,12 @@
       const cutoff = new Date(now.getFullYear(), now.getMonth(), now.getDate() - KEEP_DAYS);
       const cutoffDay = this.localDay(cutoff);
       const cutoffTs = cutoff.getTime() / 1000;
-      const tx = db.transaction(["days", "feedback", "cache", "usage"], "readwrite");
+      const tx = db.transaction(["days", "feedback", "cache", "usage", "watched"], "readwrite");
       tx.objectStore("days").index("day").openCursor(IDBKeyRange.upperBound(cutoffDay, true)).onsuccess = deleteAll;
       tx.objectStore("feedback").index("ts").openCursor(IDBKeyRange.upperBound(cutoffTs, true)).onsuccess = deleteAll;
       tx.objectStore("cache").index("createdAt").openCursor(IDBKeyRange.upperBound(cutoffTs, true)).onsuccess = deleteAll;
       tx.objectStore("usage").openCursor(IDBKeyRange.upperBound(cutoffDay, true)).onsuccess = deleteAll;
+      tx.objectStore("watched").index("day").openCursor(IDBKeyRange.upperBound(cutoffDay, true)).onsuccess = deleteAll;
       await done(tx);
     }
   }

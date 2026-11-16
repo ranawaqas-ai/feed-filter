@@ -280,6 +280,15 @@
   $("dailyCallLimit").addEventListener("input", (e) => { draft.dailyCallLimit = Number(e.target.value); changed(); });
   P.bindKeyReveal($("revealKey"), $("jevKey"));
 
+  // ---- feed topics ----------------------------------------------------------------------------
+  $("anthropicKey").addEventListener("input", (e) => { draft.anthropicKey = e.target.value.trim(); changed(); $("anthropicStatus").textContent = ""; });
+  P.bindKeyReveal($("revealAnthropic"), $("anthropicKey"));
+  $("testAnthropic").addEventListener("click", async () => {
+    $("anthropicStatus").textContent = "Checking…";
+    const r = await chrome.runtime.sendMessage({ type: "topicsHealth", unsaved: { anthropicKey: draft.anthropicKey } }).catch(() => ({ error: "extension not ready" }));
+    $("anthropicStatus").textContent = r && r.ok ? "Key works." : `Can't use the key: ${r ? r.error : "no response"}.`;
+  });
+
   // ---- save and discard ---------------------------------------------------------------------
   function validate(s) {
     if (!(s.hideThreshold >= 0 && s.showThreshold <= 1 && s.hideThreshold <= s.showThreshold)) throw new Error("The filter mark must be at or below the highlight mark.");
@@ -314,11 +323,26 @@
     cap.value = String(Number(draft.autoLoadCap) || 0);
     drift.value = String(DRIFT_STEPS.includes(Number(draft.driftPercent)) ? Number(draft.driftPercent) : 0);
     $("jevKey").value = draft.jevKey || "";
+    $("anthropicKey").value = draft.anthropicKey || "";
     $("dailyCallLimit").value = String(draft.dailyCallLimit);
     changed();
   }
 
   fill();
+  // "Make it a goal" on the dashboard opens this page with a goal to review. Nothing is saved
+  // until Save is pressed.
+  const offered = new URLSearchParams(location.hash.slice(1));
+  if (offered.get("goalText")) {
+    const used = new Set(draft.goals.map((g) => g.id));
+    let n = draft.goals.length + 1;
+    while (used.has(`G${n}`)) n += 1;
+    draft.goals.push({ id: `G${n}`, name: (offered.get("goalName") || "New goal").slice(0, 60), text: offered.get("goalText").slice(0, 400), minDurationMinutes: 0 });
+    openGoal = draft.goals.length - 1;
+    window.history.replaceState(null, "", location.pathname);
+    renderGoals();
+    changed();
+    say("Review the new goal, then press Save");
+  }
   testConnection();
   const r = await P.loadAggregate(14, saved);
   if (!r.error) {

@@ -201,6 +201,100 @@
       `<p class="small muted" style="margin:12px 0 0">Counted in this browser since ${esc(dayShort(a.rules.since))}.</p>`;
   }
 
+  // ---- feed profile: what YouTube is feeding you, by topic ---------------------------------
+  // Topics come from the weekly grouping in the service worker; the numbers are counted here
+  // from the local log by YFF.feedProfile. It always covers this week, whatever range is chosen.
+  const DISMISSED_KEY = "profileDismissed"; // topic names marked "Not for me"
+  const searchUrl = (q) => `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`;
+  const goalQuery = (g) => g.name || Y.splitGoal(g.text || "").want.slice(0, 80) || g.id;
+
+  function topicNote(t, goal) {
+    const parts = [!t.covered ? "no goal" : goal ? `your goal \u201c${goal.name || goal.id}\u201d` : "covered by your goals"];
+    if (t.change !== null) parts.push(`${t.change > 0 ? "up" : "down"} from ${Math.max(0, t.share - t.change)}% four weeks ago`);
+    let text = parts.join(", ");
+    if (t.watched) text += `. You watched ${num(t.watched)} video${t.watched === 1 ? "" : "s"} like this.`;
+    return text;
+  }
+
+  function topicRow(t, i, top, dismissed) {
+    const goal = t.covered ? Y.activeGoals(settings).find((g) => g.id === t.goalId) : null;
+    const done = dismissed.includes(t.name);
+    let acts = "";
+    if (done) acts = `<span class="small muted">Marked not for you</span>`;
+    else if (!t.covered) {
+      const not = `<button class="pill${t.watched ? " text" : ""} small" type="button" data-act="not" data-i="${i}">Not for me</button>`;
+      const make = `<button class="pill${t.watched ? "" : " text"} small" type="button" data-act="goal" data-i="${i}">Make it a goal</button>`;
+      acts = t.watched ? make + not : not + make; // the likelier choice comes first
+    } else if (t.fading && goal) acts = `<a class="pill text small" href="${esc(searchUrl(goalQuery(goal)))}" target="_blank" rel="noopener">Find more</a>`;
+    return `<div class="trow${done ? " done" : ""}"><div class="tpct">${t.share}%</div>
+      <div><div class="tname">${esc(t.name)}</div>
+        <div class="tbar"><span style="width:${top ? Math.round((100 * t.share) / top) : 0}%;background:var(${t.covered ? "--ongoal" : "--filtered"})"></span></div>
+        <div class="tnote">${esc(topicNote(t, goal))}</div></div>
+      <div class="tact">${acts}</div></div>`;
+  }
+
+  async function loadProfile() {
+    let r;
+    try {
+      r = await chrome.runtime.sendMessage({ type: "profile" });
+    } catch (err) {
+      r = { error: "extension not ready" };
+    }
+    const body = $("profileBody");
+    const refresh = $("profileRefresh");
+    if (!r || r.rows === undefined) {
+      body.innerHTML = `<p class="muted" style="margin:16px 0 0">Could not load the feed profile: ${esc(r && r.error ? (r.error.text || r.error) : "no response")}.</p>`;
+      return;
+    }
+    if (!r.hasKey) {
+      refresh.hidden = true;
+      body.innerHTML = `<p class="muted" style="margin:16px 0 0">Add an Anthropic key in <a href="options.html#topicsSec">Settings</a> to see your feed by topic.
+        Once a week, the titles and channel names of videos YouTube offered you and videos you watched are sent to Claude to be grouped.</p>`;
+      return;
+    }
+    refresh.hidden = false;
+    refresh.disabled = !!r.running;
+    refresh.textContent = r.running ? "Grouping…" : "Refresh";
+    const failed = r.error ? `<div class="pfoot" style="color:var(--bad)">The last update on ${esc(dayShort(r.error.day))} failed: ${esc(r.error.text)}.</div>` : "";
+    const profile = Y.feedProfile({ rows: r.rows, watched: r.watched, result: r.result, settings, today: r.today });
+    window.__yffProfile = profile; // read by the e2e check
+    if (!profile) {
+      body.innerHTML = `<p class="muted" style="margin:16px 0 0">No topics yet. Press Refresh to group the last four weeks of your feed now; after that it updates once a week.</p>${failed}`;
+      return;
+    }
+    const { [DISMISSED_KEY]: saved } = await chrome.storage.local.get(DISMISSED_KEY);
+    const dismissed = saved || [];
+    const top = Math.max(0, ...profile.topics.map((t) => t.share));
+    body.innerHTML = `<div class="lead">${esc(profile.headline)}</div>
+      <div style="margin-top:12px">${profile.topics.map((t, i) => topicRow(t, i, top, dismissed)).join("") || '<p class="muted">Topics are listed once they have appeared on several days.</p>'}</div>
+      <div class="pfoot">Updated ${esc(dayShort(profile.day))} from ${num(r.result.sent)} videos.${profile.other ? ` The other ${profile.other}% of this week's feed is smaller topics and one-off videos.` : ""}</div>${failed}`;
+    body.querySelectorAll("button[data-act]").forEach((b) => b.addEventListener("click", () => {
+      const t = profile.topics[Number(b.dataset.i)];
+      if (b.dataset.act === "goal") {
+        location.href = `options.html#${new URLSearchParams({ goalName: t.name, goalText: t.sentence || t.name })}`;
+        return;
+      }
+      notForMe(t, dismissed);
+    }));
+  }
+
+  async function notForMe(t, dismissed) {
+    const on = Y.activeGoals(settings);
+    const names = on.map((g) => g.name || g.id).join(", ");
+    if (!confirm(`Add "${t.name}" to the "But not" tags of ${on.length === 1 ? "your goal" : "these goals"}: ${names}?\n\nVideos are scored again against the changed goals, which uses Jev calls.`)) return;
+    const { settings: saved } = await chrome.storage.local.get("settings");
+    const current = Y.migrateSettings(saved);
+    await chrome.storage.local.set({ settings: { ...current, goals: Y.goalsExcluding(current.goals, t.name) }, [DISMISSED_KEY]: [...new Set([...dismissed, t.name])].slice(-50) });
+    load();
+  }
+
+  $("profileRefresh").addEventListener("click", async () => {
+    $("profileRefresh").disabled = true;
+    $("profileRefresh").textContent = "Grouping…";
+    await chrome.runtime.sendMessage({ type: "topics" }).catch(() => null);
+    loadProfile();
+  });
+
   async function load() {
     document.querySelectorAll("#range .chip").forEach((c) => c.setAttribute("aria-pressed", String(Number(c.dataset.days) === days)));
     $("error").hidden = true;
@@ -227,6 +321,7 @@
     renderTime(a);
     renderLists(a);
     renderRules(a);
+    await loadProfile();
     $("basis").textContent = `Sorted at your current marks: highlight above ${pctP(a.thresholds.show)}, filter below ${pctP(a.thresholds.hide)}. ` +
       `Scores recorded since ${a.firstVerdictDay ? dayShort(a.firstVerdictDay) : "-"}.`;
     document.body.dataset.loaded = "1";
