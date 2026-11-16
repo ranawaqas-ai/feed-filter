@@ -1,9 +1,9 @@
 // First-run setup: the Jev key (tested before saving), goals from editable examples or the
-// user's own, and the daily call limit. Saving switches the extension to direct mode.
+// user's own, and the daily call limit.
 (async function () {
   const Y = self.YFF;
   const P = self.YFFPage;
-  const $ = (id) => document.getElementById(id);
+  const $ = P.$;
   const { settings: saved } = await chrome.storage.local.get("settings");
   const settings = Y.migrateSettings(saved);
 
@@ -57,19 +57,14 @@
     const jevKey = $("jevKey").value.trim();
     if (!jevKey) { keyStatus("bad", "Paste your key first"); return false; }
     keyStatus("wait", "Checking…");
-    const h = await P.health({ scorer: "direct", jevKey });
+    const h = await P.health({ jevKey });
     if (h.ok) keyStatus("ok", `Key works · Jev answered in ${h.ms} ms`);
     else keyStatus("bad", `Can't use this key: ${h.error}`);
     return h.ok;
   }
 
   $("testKey").addEventListener("click", testKey);
-  $("revealKey").addEventListener("click", () => {
-    const shown = $("jevKey").type === "text";
-    $("jevKey").type = shown ? "password" : "text";
-    $("revealKey").textContent = shown ? "Show" : "Hide";
-  });
-  $("openOptions").addEventListener("click", (e) => { e.preventDefault(); chrome.runtime.openOptionsPage(); });
+  P.bindKeyReveal($("revealKey"), $("jevKey"));
   $("openYouTube").addEventListener("click", () => chrome.tabs.create({ url: "https://www.youtube.com/" }));
 
   $("form").addEventListener("submit", async (e) => {
@@ -85,7 +80,7 @@
     if (!ok) { $("msg").textContent = "The key did not work, so nothing was saved."; return; }
     const goals = chosen.map(({ id, name, text, minDurationMinutes }) => ({
       id, name: (name || "").trim() || Y.splitGoal(text.trim()).want.slice(0, 40), text: text.trim(), minDurationMinutes: minDurationMinutes || 0 }));
-    const next = { ...settings, scorer: "direct", jevKey: $("jevKey").value.trim(), dailyCallLimit: limit, goals };
+    const next = { ...settings, jevKey: $("jevKey").value.trim(), dailyCallLimit: limit, goals };
     await chrome.storage.local.set({ settings: next });
     $("form").hidden = true;
     $("done").hidden = false;

@@ -1,9 +1,9 @@
 // Popup: this tab's counts, the reveal and pause switches, today's totals, and an offline
-// state with the start command when the scorer cannot be reached.
+// state when the scorer cannot be reached.
 (async function () {
   const Y = self.YFF;
   const P = self.YFFPage;
-  const $ = (id) => document.getElementById(id);
+  const $ = P.$;
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   const { settings: saved } = await chrome.storage.local.get("settings");
   const settings = Y.migrateSettings(saved);
@@ -36,7 +36,6 @@
     $("online").hidden = true;
     $("offline").hidden = false;
     $("offWhy").textContent = why ? `(${why})` : "";
-    $("proxyCmd").hidden = settings.scorer !== "proxy"; // the start command only helps the local proxy
   }
 
   function showOnline() {
@@ -90,7 +89,7 @@
     setStatus("wait", "Checking the scorer…");
     const [state, h] = await Promise.all([tabState(), P.health()]);
     renderCounts(state);
-    if (!h.ok || (state && state.proxyDown)) showOffline(h.ok ? "the last batch failed" : h.error);
+    if (!h.ok || (state && state.scorerDown)) showOffline(h.ok ? "the last batch failed" : h.error);
     else showOnline();
     if (h.ok) today();
     return { state, h };
@@ -98,11 +97,6 @@
 
   $("reveal").addEventListener("change", (e) => chrome.tabs.sendMessage(tab.id, { type: "reveal", on: e.target.checked }));
   $("off").addEventListener("change", (e) => chrome.tabs.sendMessage(tab.id, { type: "setTabOff", off: e.target.checked }));
-  $("copy").addEventListener("click", async () => {
-    await navigator.clipboard.writeText($("cmd").textContent);
-    $("copy").textContent = "Copied";
-    setTimeout(() => { $("copy").textContent = "Copy"; }, 1500);
-  });
   $("unfiltered").addEventListener("click", async () => {
     if (tab) await chrome.tabs.sendMessage(tab.id, { type: "setTabOff", off: true }).catch(() => {});
     window.close();

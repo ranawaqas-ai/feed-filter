@@ -1,17 +1,17 @@
-// Direct mode: the service worker calls Jev itself with the user's own key, doing what
-// proxy/judge.py does (one call per video and goal, best p wins, cache, daily cap, retries).
+// The scorer: the service worker calls Jev with the user's own key (one call per video and
+// goal, best p wins, cache, daily cap, retries).
 // Loaded with importScripts in the service worker and with require() in the unit tests.
 (function (root) {
   "use strict";
 
   const JEV_URL = "https://api.typesafe.ai/v1/systemone";
   const MODELS_URL = "https://api.typesafe.ai/v1/models";
-  // The exact request the evaluation measured; proxy/prompt.py holds the same values.
+  // The exact request the evaluation measured.
   const JEV_MODEL = "jev-1.14.0";
   const WORDING_ID = "N1";
   const WORDING = "Does the video in `video` serve the goal in `goal`?";
 
-  // The proxy's retry policy (proxy/__main__.py): 4 retries on 408, 429 and 5xx or a network
+  // Retry policy: 4 retries on 408, 429 and 5xx or a network
   // error, backoff from 0.5 s doubling to 8 s with up to 25% jitter, Retry-After respected.
   const RETRY = { maxRetries: 4, initialMs: 500, maxMs: 8000, jitter: 0.25 };
   const RETRY_STATUS = (s) => s === 408 || s === 429 || (s >= 500 && s < 600);
@@ -23,7 +23,7 @@
     }
   }
 
-  // sha256 of the exact goal text, first 32 hex characters, as proxy/store.py goal_hash.
+  // sha256 of the exact goal text, first 32 hex characters.
   async function goalHash(text) {
     const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
     return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("").slice(0, 32);
@@ -32,12 +32,6 @@
   function requestBody(goal, video, formatVideo) {
     return { state: { goal, video: formatVideo(video) }, model: JEV_MODEL,
       questions: { v0: { type: "noul", instructions: WORDING } } };
-  }
-
-  function band(p, show, hide) {
-    if (p > show) return "show";
-    if (p < hide) return "hide";
-    return "uncertain";
   }
 
   class Semaphore {
@@ -134,7 +128,7 @@
     }
   }
 
-  // The judge, as proxy/judge.py. `store` keeps the cache, the daily counter and the log.
+  // The judge. `store` keeps the cache, the daily counter and the log.
   class DirectJudge {
     constructor({ jev, store, formatVideo, localDay, dailyCap, maxConcurrency = 30 }) {
       this.jev = jev;
@@ -145,18 +139,18 @@
       this.sem = new Semaphore(maxConcurrency);
     }
 
-    async judgeOne(goal, ghash, videos, show, hide) {
+    async judgeOne(goal, ghash, videos) {
       const unique = [...new Map(videos.map((v) => [v.videoId, v])).values()];
       const results = new Map();
       const misses = [];
       for (const v of unique) {
         const p = await this.store.cachedP(v.videoId, ghash, JEV_MODEL, WORDING_ID);
         if (p === null || p === undefined) misses.push(v);
-        else results.set(v.videoId, { videoId: v.videoId, p, verdict: band(p, show, hide), source: "cache", error: null });
+        else results.set(v.videoId, { videoId: v.videoId, p, source: "cache", error: null });
       }
       const granted = await this.store.reserveCalls(this.localDay(new Date()), misses.length, this.dailyCap);
       for (const v of misses.slice(granted)) {
-        results.set(v.videoId, { videoId: v.videoId, p: null, verdict: null, source: "none", error: "daily_cap" });
+        results.set(v.videoId, { videoId: v.videoId, p: null, source: "none", error: "daily_cap" });
       }
       await Promise.all(misses.slice(0, granted).map(async (v) => {
         let p = null;
@@ -167,19 +161,18 @@
         } catch (err) {
           error = err instanceof JevError ? err.code : `internal:${err && err.name}`;
         }
-        results.set(v.videoId, { videoId: v.videoId, p, verdict: p === null ? null : band(p, show, hide),
-          source: p === null ? "none" : "jev", error });
+        results.set(v.videoId, { videoId: v.videoId, p, source: p === null ? "none" : "jev", error });
       }));
       return unique.map((v) => results.get(v.videoId));
     }
 
-    // goals: [{id, text}]. Same response shape as the proxy's POST /judge.
-    async judgeGoals(goals, videos, show = 0.8, hide = 0.2) {
+    // goals: [{id, text}].
+    async judgeGoals(goals, videos) {
       const hashes = await Promise.all(goals.map((g) => goalHash(g.text)));
-      const perGoal = await Promise.all(goals.map((g, i) => this.judgeOne(g.text, hashes[i], videos, show, hide)));
+      const perGoal = await Promise.all(goals.map((g, i) => this.judgeOne(g.text, hashes[i], videos)));
       const byGoal = perGoal.map((rs) => new Map(rs.map((r) => [r.videoId, r])));
       const ids = [...new Set(videos.map((v) => v.videoId))];
-      const results = ids.map((vid) => bestOf(vid, goals.map((g, i) => [g.id, byGoal[i].get(vid)]), show, hide));
+      const results = ids.map((vid) => bestOf(vid, goals.map((g, i) => [g.id, byGoal[i].get(vid)])));
       if (this.store.logJudged) {
         const byId = new Map(videos.map((v) => [v.videoId, v]));
         await this.store.logJudged(this.localDay(new Date()), Date.now() / 1000,
@@ -191,17 +184,26 @@
   }
 
   // Highest p across goals; any failed goal makes the whole item an error, because the missing
-  // goal could have been the best one (proxy/judge.py best_of).
-  function bestOf(videoId, perGoal, show, hide) {
+  // goal could have been the best one.
+  function bestOf(videoId, perGoal) {
     const ps = Object.fromEntries(perGoal.map(([gid, r]) => [gid, r.p]));
     const failed = perGoal.filter(([, r]) => r.p === null);
     const source = perGoal.some(([, r]) => r.source === "jev") ? "jev" : "cache";
-    if (failed.length) return { videoId, p: null, verdict: null, source: "none", error: failed[0][1].error, goalId: null, perGoal: ps };
+    if (failed.length) return { videoId, p: null, source: "none", error: failed[0][1].error, goalId: null, perGoal: ps };
     const [gid, top] = perGoal.reduce((a, b) => (b[1].p > a[1].p ? b : a));
-    return { videoId, p: top.p, verdict: band(top.p, show, hide), source, error: null, goalId: gid, perGoal: ps };
+    return { videoId, p: top.p, source, error: null, goalId: gid, perGoal: ps };
   }
 
-  const api = { JEV_URL, JEV_MODEL, WORDING_ID, WORDING, JevClient, JevError, DirectJudge, Semaphore, goalHash, requestBody, bestOf, band };
+  // When every item failed for a reason that is about the scorer and not the video (a rejected
+  // key, no connection), the request reports it once, so the page shows the scorer banner.
+  const REQUEST_ERRORS = { bad_key: "Jev rejected the key", "jev_error:connection": "Jev unreachable", timeout: "Jev unreachable" };
+  function requestError(results) {
+    if (!results.length) return null;
+    const first = results[0].error;
+    return REQUEST_ERRORS[first] && results.every((r) => r.error === first) ? REQUEST_ERRORS[first] : null;
+  }
+
+  const api = { JEV_URL, JEV_MODEL, WORDING_ID, WORDING, JevClient, JevError, DirectJudge, Semaphore, goalHash, requestBody, bestOf, requestError };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.YFFDirect = api;
 })(typeof self !== "undefined" ? self : globalThis);

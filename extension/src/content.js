@@ -1,14 +1,13 @@
 // Isolated-world content script: decides every feed card and applies the result.
-// Pipeline per card: override -> code rules -> session cache -> proxy (Jev, every goal,
+// Pipeline per card: override -> code rules -> session cache -> Jev (every goal,
 // best p wins) -> bands -> minimum duration of the best goal.
 // Cards stay blurred (blur.css) until a verdict: show (highlighted) and uncertain are readable,
 // hide collapses, and any failure keeps the card blurred.
 (function () {
   "use strict";
   const Y = globalThis.YFF;
-  const HOME = "ytd-rich-item-renderer";
-  const SIDEBAR = "ytd-watch-next-secondary-results-renderer yt-lockup-view-model";
-  const HOSTS = `${HOME}, ${SIDEBAR}`;
+  const HOME = Y.HOME_CARD;
+  const HOSTS = `${HOME}, ${Y.SIDEBAR_CARD}`;
   const META_WAIT_MS = 700; // after this, fall back to reading the DOM
   const BATCH_SIZE = 30;
   const FLUSH_MS = 60;
@@ -20,7 +19,7 @@
   const queue = new Map(); // videoId -> {host, meta}
   let flushTimer = null;
   let flushCount = 0;
-  let proxyDown = false;
+  let scorerDown = false;
   let pageSeq = 0;
   const pages = new Map(); // feed page id -> {hosts: Set, closed}
   const seenContinuations = new WeakSet();
@@ -35,17 +34,6 @@
 
   function goals() {
     return settings ? Y.activeGoals(settings) : [];
-  }
-
-  // Short, stable key for the goal texts, so an edited goal does not reuse old p values.
-  function goalKey(text) {
-    let h = 2166136261;
-    for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 16777619);
-    return (h >>> 0).toString(36);
-  }
-
-  function goalsKey() {
-    return goalKey(goals().map((g) => `${g.id}\u0000${g.text}`).join("\u0001"));
   }
 
   // Overrides apply to the video whatever goal scored it.
@@ -150,15 +138,14 @@
     return null; // wait for the page bridge
   }
 
-  // Rule hides never reach the proxy, so the dashboard counts them from a local tally.
+  // Rule hides never reach the scorer, so the dashboard counts them from a local tally.
   // Each card is sent once per page; the background dedupes per day. Nothing leaves the browser.
   const tallied = new Set();
   function tally(meta, reason, host) {
-    // Cards without an id or title (ads) get one per card element, so four ads count as four.
     if (!meta.videoId && !meta.contentId && !meta.title && !host.dataset.yffTallyId) {
       host.dataset.yffTallyId = Math.random().toString(36).slice(2, 10);
     }
-    const id = meta.videoId || meta.contentId || (meta.title ? `${meta.kind}:${meta.title}`.slice(0, 120) : `${meta.kind}:${host.dataset.yffTallyId}`);
+    const id = Y.tallyId(meta, host.dataset.yffTallyId);
     if (tallied.has(id)) return;
     tallied.add(id);
     try {
@@ -178,7 +165,7 @@
       return;
     }
     if (!meta.videoId) return apply(host, "error", "could not read this card", "rule");
-    const hit = pCache.get(`${goalsKey()}|${meta.videoId}`);
+    const hit = pCache.get(`${Y.goalsKey(goals())}|${meta.videoId}`);
     if (hit) {
       const d = Y.decideScored(meta, settings, hit.p, hit.goalId);
       return apply(host, d.state, d.reason, "session");
@@ -241,7 +228,7 @@
       } else {
         delete host.dataset.yffMismatchSince;
       }
-      const key = meta.videoId || meta.contentId || `${meta.kind}:${meta.title || ""}`;
+      const key = Y.cardKey(meta);
       if (host.dataset.yffKey !== key) {
         // New card, or YouTube reused this element for a different video: start over, blurred.
         const reused = host.dataset.yffKey !== undefined;
@@ -271,7 +258,7 @@
     });
   }
 
-  // ---- talking to the proxy (via the service worker) ----------------------------------
+  // ---- talking to the scorer (via the service worker) ---------------------------------
   function scheduleFlush() {
     if (queue.size >= BATCH_SIZE) return flush();
     if (!flushTimer) flushTimer = setTimeout(flush, FLUSH_MS);
@@ -281,33 +268,27 @@
     clearTimeout(flushTimer);
     flushTimer = null;
     const active = goals();
-    const key = goalsKey();
+    const key = Y.goalsKey(active);
     const items = [...queue.values()].slice(0, BATCH_SIZE);
     for (const { meta } of items) queue.delete(meta.videoId);
     if (queue.size) scheduleFlush();
     if (!items.length || !active.length) return;
     flushCount += 1;
     html().dataset.yffFlushes = String(flushCount); // batches sent, read by the end-to-end timing check
-    // Only these fields leave the browser.
-    const videos = items.map(({ meta }) => ({
-      videoId: meta.videoId, title: meta.title || "", channel: meta.channel || "",
-      durationSeconds: meta.durationSeconds ?? null, viewCount: meta.viewCount ?? null,
-      isShort: !!meta.isShort, description: meta.description || "",
-    }));
+    const videos = items.map(({ meta }) => Y.videoPayload(meta));
     let resp;
     try {
       resp = await chrome.runtime.sendMessage({ type: "judge", body: {
-        goals: active.map((g) => ({ id: g.id, text: g.text })), videos,
-        show: settings.showThreshold, hide: settings.hideThreshold } });
+        goals: active.map((g) => ({ id: g.id, text: g.text })), videos } });
     } catch (err) {
       resp = { error: "extension_error" };
     }
     if (!resp || resp.error) {
       for (const { host } of items) if (host.dataset.yffKey === host.yffMeta?.videoId) apply(host, "error", `filter offline: ${resp ? resp.error : "no response"}`, "error");
-      setProxyDown(true, resp ? resp.error : "no response");
+      setScorerDown(true, resp ? resp.error : "no response");
       return;
     }
-    setProxyDown(false);
+    setScorerDown(false);
     const byId = new Map(resp.results.map((r) => [r.videoId, r]));
     for (const { host, meta } of items) {
       const r = byId.get(meta.videoId);
@@ -355,8 +336,7 @@
     if (!best) return;
     chrome.runtime.sendMessage({ type: "feedback", body: {
       goal: best.text, action, p: pMatch ? Number(pMatch[1]) : null, previousVerdict: previous, reason: (reason || "").slice(0, 80),
-      video: { videoId: meta.videoId, title: meta.title || "", channel: meta.channel || "", durationSeconds: meta.durationSeconds ?? null,
-        viewCount: meta.viewCount ?? null, isShort: !!meta.isShort, description: meta.description || "" } } }).catch(() => {});
+      video: Y.videoPayload(meta) } }).catch(() => {});
   }
 
   // ---- counts, banner, auto-load cap ----------------------------------------------------
@@ -494,16 +474,16 @@
       `Of ${share.scored} videos scored, ${share.fit} fit your goals (${Math.round(share.percent)}% rejected).`;
   }
 
-  function setProxyDown(down, why) {
-    if (down === proxyDown && !down) return;
-    proxyDown = down;
+  function setScorerDown(down, why) {
+    if (down === scorerDown && !down) return;
+    scorerDown = down;
     if (down && !tabOff()) {
-      banner("proxy", `Can\u2019t reach the scorer (${why}). Videos stay blurred.`, [
+      banner("scorer", `Can\u2019t reach the scorer (${why}). Videos stay blurred.`, [
         ["Pause on this tab", () => setTabOff(true)],
-        ["Retry", () => { clearBanner("proxy"); retryErrors(); }, true],
+        ["Retry", () => { clearBanner("scorer"); retryErrors(); }, true],
       ]);
     } else if (!down) {
-      clearBanner("proxy");
+      clearBanner("scorer");
     }
   }
 
@@ -647,10 +627,10 @@
     } else if (msg.type === "setTabOff") {
       setTabOff(msg.off);
     } else if (msg.type === "retry") {
-      clearBanner("proxy");
+      clearBanner("scorer");
       retryErrors();
     } else if (msg.type === "getState") {
-      sendResponse({ counts: counts(), off: tabOff(), reveal: html().hasAttribute("data-yff-reveal"), proxyDown, needsSetup: waitingForSetup });
+      sendResponse({ counts: counts(), off: tabOff(), reveal: html().hasAttribute("data-yff-reveal"), scorerDown, needsSetup: waitingForSetup });
       return;
     }
     sendResponse({ ok: true });

@@ -6,8 +6,8 @@
 (function () {
   "use strict";
   const Y = globalThis.YFF;
-  const HOME = "ytd-rich-item-renderer";
-  const SIDEBAR = "ytd-watch-next-secondary-results-renderer yt-lockup-view-model";
+  const HOME = Y.HOME_CARD;
+  const SIDEBAR = Y.SIDEBAR_CARD;
   const seen = new WeakMap(); // host -> source object last used, to skip unchanged cards
 
   function sidebarMeta(el) {

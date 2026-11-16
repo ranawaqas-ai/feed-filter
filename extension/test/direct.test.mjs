@@ -1,4 +1,4 @@
-// Unit tests for extension/src/direct.js (direct mode). Run: node --test extension/test/
+// Unit tests for extension/src/direct.js (the scorer). Run: node --test extension/test/
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
@@ -45,10 +45,10 @@ function setup({ score, dailyCap = 100, responses } = {}) {
   return { calls, jev, store, judge };
 }
 
-test("goalHash matches proxy goal_hash", async () => {
+test("goalHash is the first 32 hex characters of sha256", async () => {
   // python: hashlib.sha256("Learn Rust".encode()).hexdigest()[:32]
   assert.equal(await D.goalHash("Learn Rust"), "682ddafabd103587597f0a8e5e7d4135");
-  pass("YFFDirect.goalHash: sha256 of the goal text, first 32 hex characters, as the proxy");
+  pass("YFFDirect.goalHash: sha256 of the goal text, first 32 hex characters");
 });
 
 test("JevClient sends the evaluated request and reads answers.v0.noul", async () => {
@@ -69,12 +69,12 @@ test("JevClient sends the evaluated request and reads answers.v0.noul", async ()
 test("DirectJudge keeps the best goal, caches p and skips the cache on a new goal text", async () => {
   const { calls, judge } = setup({ score: (goal, v) => (goal === "A" ? 0.3 : v.includes("t b") ? 0.9 : 0.1) });
   const goals = [{ id: "ga", text: "A" }, { id: "gb", text: "B" }];
-  const first = await judge.judgeGoals(goals, [video("a"), video("b"), video("a")], 0.8, 0.2);
-  assert.deepEqual(first.results.map((r) => [r.videoId, r.p, r.goalId, r.verdict, r.source]),
-    [["a", 0.3, "ga", "uncertain", "jev"], ["b", 0.9, "gb", "show", "jev"]]);
+  const first = await judge.judgeGoals(goals, [video("a"), video("b"), video("a")]);
+  assert.deepEqual(first.results.map((r) => [r.videoId, r.p, r.goalId, r.source]),
+    [["a", 0.3, "ga", "jev"], ["b", 0.9, "gb", "jev"]]);
   assert.deepEqual(first.results[0].perGoal, { ga: 0.3, gb: 0.1 });
   assert.equal(calls.length, 4, "2 unique videos x 2 goals; the duplicate is not called again");
-  const again = await judge.judgeGoals(goals, [video("a"), video("b")], 0.8, 0.2);
+  const again = await judge.judgeGoals(goals, [video("a"), video("b")]);
   assert.equal(calls.length, 4, "second request served from cache");
   assert.deepEqual(again.results.map((r) => r.source), ["cache", "cache"]);
   await judge.judgeGoals([{ id: "ga", text: "A edited" }], [video("a")]);
@@ -82,12 +82,23 @@ test("DirectJudge keeps the best goal, caches p and skips the cache on a new goa
   pass("YFFDirect.DirectJudge: best p wins with its goal id, duplicates deduped, cache hit on repeat, miss on edited goal");
 });
 
-test("DirectJudge: a failed goal makes the item an error, never a verdict", async () => {
+test("DirectJudge: a failed goal makes the item an error, never a score", async () => {
   const { judge } = setup({ responses: [ok(0.9), status(400)] });
   const out = await judge.judgeGoals([{ id: "g1", text: "A" }, { id: "g2", text: "B" }], [video("a")]);
-  assert.deepEqual([out.results[0].p, out.results[0].verdict, out.results[0].error], [null, null, "jev_error:HTTP 400"]);
+  assert.deepEqual([out.results[0].p, out.results[0].error], [null, "jev_error:HTTP 400"]);
   assert.deepEqual(out.results[0].perGoal, { g1: 0.9, g2: null });
   pass("YFFDirect.bestOf: any failed goal makes the whole item an error with p null");
+});
+
+test("requestError reports a scorer-wide failure once", () => {
+  const failed = (error) => ({ p: null, error });
+  assert.equal(D.requestError([failed("bad_key"), failed("bad_key")]), "Jev rejected the key");
+  assert.equal(D.requestError([failed("jev_error:connection")]), "Jev unreachable");
+  assert.equal(D.requestError([failed("timeout"), failed("timeout")]), "Jev unreachable");
+  assert.equal(D.requestError([failed("jev_error:connection"), { p: 0.4, error: null }]), null, "one scored item: per-item errors stand");
+  assert.equal(D.requestError([failed("daily_cap"), failed("daily_cap")]), null, "the cap is not a scorer failure");
+  assert.equal(D.requestError([]), null);
+  pass("YFFDirect.requestError: a rejected key or no connection on every item becomes one request error; mixed results and the cap do not");
 });
 
 test("DirectJudge stops at the daily cap and reports calls used", async () => {

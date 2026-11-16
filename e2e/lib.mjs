@@ -56,6 +56,14 @@ export async function setSettings(browser, patch) {
   }, patch);
 }
 
+// Blocks (or unblocks) the service worker's requests to Jev through the DevTools protocol,
+// so a run can see what the page does when the scorer cannot be reached.
+export async function blockJev(browser, on) {
+  const worker = await extensionWorker(browser);
+  await worker.client.send("Network.enable");
+  await worker.client.send("Network.setBlockedURLs", { urls: on ? ["*api.typesafe.ai*"] : [] });
+}
+
 export function pct(values, q) {
   if (!values.length) return null;
   const s = [...values].sort((a, b) => a - b);

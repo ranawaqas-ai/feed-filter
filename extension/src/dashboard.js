@@ -1,11 +1,11 @@
 // Dashboard: what the feed offered, what got through per goal, and why.
-// Scored rows come from the proxy's /stats (through the background, which holds the secret);
+// Scored rows come from the service worker's verdict log (IndexedDB);
 // rule hides come from the local tally. YFF.aggregate decides every row with the same
 // decideScored the feed uses, at the current settings.
 (function () {
   const Y = self.YFF;
   const P = self.YFFPage;
-  const $ = (id) => document.getElementById(id);
+  const $ = P.$;
   const esc = P.esc;
   const num = P.num;
   const SERIES = [
@@ -22,7 +22,7 @@
     ? `${Math.floor(s / 3600)}:${String(Math.floor((s % 3600) / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`
     : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`);
   const dayLong = (d) => new Date(`${d}T12:00:00`).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
-  const dayShort = (d) => new Date(`${d}T12:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  const dayShort = P.dayShort;
   const watchUrl = (id) => `https://www.youtube.com/watch?v=${encodeURIComponent(id)}`;
 
   let settings = null;
@@ -211,7 +211,7 @@
     $("topDot").className = `dot ${ok ? "ok" : "bad"}`;
     $("topStatus").textContent = ok ? "Scorer connected" : "Scorer offline";
     if (!ok) {
-      $("error").textContent = `Could not load scores from the scorer: ${r.error}. Is it running? Start it with: uv run python -m proxy`;
+      $("error").textContent = `Could not load scores: ${r.error}.`;
       $("error").hidden = false;
       $("body").hidden = true;
       $("dateLine").textContent = "";

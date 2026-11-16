@@ -26,9 +26,9 @@ TypeSafe has no per-key spending limit. The **daily call limit** in the extensio
 
 ## What leaves your browser
 
-For each video, the extension sends its title, channel, length, view count and whether it is a Short, together with your goal text, to `api.typesafe.ai`. Nothing else is sent: no cookies, account details or watch history.
+For each video, the extension sends its video ID, title, channel, length, view count and whether it is a Short, together with your goal text, to `api.typesafe.ai`. A description field is part of the request and is always empty, because feed cards carry none. Nothing else is sent: no cookies, account details or watch history.
 
-Your key is stored in this Chrome profile's extension storage and is sent only to `api.typesafe.ai`. Anyone with access to your Chrome profile can read it. If that is a concern, use the local proxy below, which keeps the key in a file on your computer.
+Your key is stored in this Chrome profile's extension storage and is sent only to `api.typesafe.ai`. Anyone with access to your Chrome profile can read it.
 
 Scores, the per-day log the dashboard uses, and your Keep and Hide choices stay in the browser (IndexedDB) and are deleted after 30 days.
 
@@ -40,24 +40,11 @@ A goal works best as "what you want. Not: what to leave out." For example:
 
 Each video is checked against every goal that is on, and the best match decides. A goal can also have a minimum length, so short clips do not count for it.
 
-## Local proxy (optional)
-
-The `proxy` folder is a small Python server that holds your Jev key in a `.env` file and scores videos for the extension. It needs [uv](https://docs.astral.sh/uv/).
-
-```bash
-cp .env.example .env      # fill in jev_api_key, proxy_shared_secret, proxy_extension_origin
-uv sync
-uv run python -m proxy    # listens on 127.0.0.1:8787
-```
-
-Then, in the extension's Settings, choose **Local proxy** under Connection and paste the shared secret. The proxy logs verdicts to `proxy/data/` on your computer.
-
 ## Development
 
 | Command | What it covers |
 |---|---|
-| `node --test extension/test/*.test.mjs` | Extension logic: extraction from YouTube's card data, rules, bands, the Jev request text, the direct scorer (cache, cap, retries), the stats shape, settings migration |
-| `uv run pytest proxy/tests -s` | The proxy, and the two fixtures that pin the extension to it (request text and stats shape) |
+| `node --test extension/test/*.test.mjs` | Extension logic: extraction from YouTube's card data, rules, bands, the Jev request text, the scorer (cache, cap, retries), the stats shape, settings migration |
 | `cd e2e && npm install`, then `node e2e/seed_profile.mjs` and `node e2e/run_e2e.mjs` | End-to-end checks on youtube.com in a separate, logged-out Chrome for Testing profile. Needs `jev_api_key` in `.env`; one run uses about 1,000 Jev calls. |
 
 `extension/src/shared/core.js` is the shared logic. After editing it, run `node extension/sync_core.mjs` to regenerate `core.main.js`, which the page-world bridge loads.

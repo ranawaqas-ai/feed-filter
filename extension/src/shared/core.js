@@ -5,6 +5,9 @@
   "use strict";
 
   const VIDEO_ID = /^[A-Za-z0-9_-]{11}$/;
+  // The elements decided as cards: home grid items and watch-page sidebar items.
+  const HOME_CARD = "ytd-rich-item-renderer";
+  const SIDEBAR_CARD = "ytd-watch-next-secondary-results-renderer yt-lockup-view-model";
 
   // "11:21" -> 681, "1:02:03" -> 3723; anything else -> null
   function parseDuration(text) {
@@ -229,7 +232,7 @@
   }
 
   // A goal's text is "<what I want> Not: a, b, or c." The editor shows the two parts
-  // separately; joinGoal(splitGoal(t)) gives t back for the defaults (the proxy caches by
+  // separately; joinGoal(splitGoal(t)) gives t back for the defaults (scores are cached by
   // the exact text, so a changed byte means re-scoring).
   const NOT_MARK = " Not: ";
   function splitGoal(text) {
@@ -362,8 +365,8 @@
   }
 
   // ---- the Jev request text --------------------------------------------------------------
-  // formatVideo must equal proxy/prompt.py format_video byte for byte (the text the
-  // evaluation measured); test/format_video_fixture.json pins both sides.
+  // formatVideo must produce the text the evaluation measured, byte for byte;
+  // test/format_video_fixture.json pins it.
   function formatDurationText(seconds) {
     if (seconds === null || seconds === undefined) return "unknown";
     const h = Math.floor(seconds / 3600);
@@ -411,7 +414,35 @@
     return "uncertain";
   }
 
-  // Local calendar day as YYYY-MM-DD, the same day the proxy's SQLite 'localtime' gives.
+  // The only fields of a card that leave the browser (to Jev, and into the local log).
+  function videoPayload(meta) {
+    return {
+      videoId: meta.videoId, title: meta.title || "", channel: meta.channel || "",
+      durationSeconds: meta.durationSeconds ?? null, viewCount: meta.viewCount ?? null,
+      isShort: !!meta.isShort, description: meta.description || "",
+    };
+  }
+
+  // Short, stable key for the goals' ids and texts, so an edited goal does not reuse old p values.
+  function goalsKey(goals) {
+    const text = goals.map((g) => `${g.id}\u0000${g.text}`).join("\u0001");
+    let h = 2166136261;
+    for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 16777619);
+    return (h >>> 0).toString(36);
+  }
+
+  // What a card element currently shows. When it changes, the card is decided again.
+  function cardKey(meta) {
+    return meta.videoId || meta.contentId || `${meta.kind}:${meta.title || ""}`;
+  }
+
+  // Id for the rule-hide tally. A card with no id and no title (an ad) is counted per card
+  // element, by the id the caller gives it, so four ads count as four.
+  function tallyId(meta, elementId) {
+    return meta.videoId || meta.contentId || (meta.title ? `${meta.kind}:${meta.title}`.slice(0, 120) : `${meta.kind}:${elementId}`);
+  }
+
+  // Local calendar day as YYYY-MM-DD.
   function localDay(d) {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   }
@@ -423,7 +454,7 @@
     return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
   }
 
-  // Dashboard numbers from /stats rows (one per local day and video) and the local rule tally.
+  // Dashboard numbers from the stats rows (one per local day and video) and the local rule tally.
   // Each row is decided again with decideScored at the current settings, so the dashboard and
   // the feed agree. Goal text that no current goal has goes to the "earlier" bucket.
   function aggregate(stats, tally, settings) {
@@ -537,13 +568,9 @@
     allowedLanguages: [],
     showThreshold: 0.8,
     hideThreshold: 0.1,
-    settingsVersion: 4,
-    // "direct": the service worker calls Jev with jevKey. "proxy": the local Python proxy.
-    scorer: "direct",
-    jevKey: "",
+    settingsVersion: 5,
+    jevKey: "", // the service worker calls Jev with it
     dailyCallLimit: 3000,
-    proxyUrl: "http://127.0.0.1:8787",
-    proxySecret: "",
     autoLoadCap: 3,
     driftPercent: 80,
   };
@@ -559,26 +586,23 @@
     }
     // Version 3 added short goal names, filled at the time for the then-built-in goals.
     if (saved && (saved.settingsVersion || 1) < 3) s.settingsVersion = 3;
-    // Version 4 added direct mode. Anyone already set up with a proxy secret stays on the
-    // proxy, with the 15,000-call cap that proxy uses, until they switch.
-    if (saved && (saved.settingsVersion || 1) < 4) {
-      if (saved.proxySecret && !saved.scorer) {
-        s.scorer = "proxy";
-        if (saved.dailyCallLimit === undefined) s.dailyCallLimit = 15000;
-      }
-      s.settingsVersion = 4;
-    }
+    // Version 4 added scoring with the user's own Jev key, beside a local Python proxy.
+    // Version 5 removed the proxy: its settings are dropped, and a profile that used it has
+    // no Jev key yet, so it counts as not set up until one is entered on the setup page.
+    if (saved && (saved.settingsVersion || 1) < 5) s.settingsVersion = 5;
+    delete s.scorer;
+    delete s.proxyUrl;
+    delete s.proxySecret;
     return s;
   }
 
-  // Ready to filter: a way to reach a scorer and at least one goal that is on.
+  // Ready to filter: a Jev key and at least one goal that is on.
   function setupComplete(settings) {
     const s = settings || {};
-    const reachable = s.scorer === "proxy" ? !!s.proxySecret : !!s.jevKey;
-    return reachable && activeGoals(s).length > 0;
+    return !!s.jevKey && activeGoals(s).length > 0;
   }
 
-  const api = { VIDEO_ID, parseDuration, parseViews, extractLockup, extractShortsLockup, extractFromData,
+  const api = { VIDEO_ID, HOME_CARD, SIDEBAR_CARD, videoPayload, goalsKey, cardKey, tallyId, parseDuration, parseViews, extractLockup, extractShortsLockup, extractFromData,
     extractFromDom, videoIdFromHref, detectLanguage, applyRules, activeGoals, decideScored, band, migrateSettings, localDay, aggregate, DEFAULT_SETTINGS, EXAMPLE_GOALS, setupComplete,
     splitGoal, joinGoal, goalName, describe, insights, languageName, driftShare, driftOn, formatVideo };
   root.YFF = Object.assign(root.YFF || {}, api);

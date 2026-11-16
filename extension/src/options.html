@@ -157,14 +157,7 @@
 
     <section id="connSec" class="sec">
       <h2 class="sh">Connection</h2>
-      <p class="sd" id="connDesc"></p>
-      <div class="row">
-        <span class="rl">Scorer</span>
-        <div class="rc" role="radiogroup" aria-label="Scorer">
-          <label class="tgrow"><input type="radio" name="scorer" value="direct" id="scorerDirect">Jev key (direct): this browser calls Jev with your key</label>
-          <label class="tgrow"><input type="radio" name="scorer" value="proxy" id="scorerProxy">Local proxy (advanced): a Python proxy on this computer holds the key</label>
-        </div>
-      </div>
+      <p class="sd">This browser sends each video's title, channel, length and view count with your goal to Jev (api.typesafe.ai), using your key.</p>
       <div class="row" style="align-items:center">
         <span class="rl">Status</span>
         <div class="rc" style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
@@ -172,34 +165,19 @@
           <button class="pill" id="test" type="button">Test again</button>
         </div>
       </div>
-      <div id="directFields">
-        <div class="row">
-          <label class="rl" for="jevKey">Jev API key</label>
-          <div class="rc">
-            <div class="secret"><input id="jevKey" type="password" class="input" autocomplete="off" spellcheck="false"><button class="pill text" id="revealKey" type="button">Show</button></div>
-            <div class="hint">From console.typesafe.ai/keys. Stored only in this browser profile and sent only to api.typesafe.ai. Anyone with access to this Chrome profile can read it.</div>
-          </div>
-        </div>
-        <div class="row">
-          <label class="rl" for="dailyCallLimit">Daily call limit</label>
-          <div class="rc">
-            <input id="dailyCallLimit" class="input" type="number" min="1" step="1" style="max-width:160px">
-            <div class="hint">One call per video per goal. TypeSafe has no per-key spending limit, so this is the only guard. <span id="callsToday"></span></div>
-          </div>
-        </div>
-      </div>
-      <div id="proxyFields">
       <div class="row">
-        <label class="rl" for="proxyUrl">Scorer address</label>
-        <div class="rc"><input id="proxyUrl" class="input" type="url"></div>
-      </div>
-      <div class="row">
-        <label class="rl" for="proxySecret">Shared secret</label>
+        <label class="rl" for="jevKey">Jev API key</label>
         <div class="rc">
-          <div class="secret"><input id="proxySecret" type="password" class="input" autocomplete="off"><button class="pill text" id="reveal" type="button">Show</button></div>
-          <div class="hint">From <code>proxy_shared_secret</code> in your .env file</div>
+          <div class="secret"><input id="jevKey" type="password" class="input" autocomplete="off" spellcheck="false"><button class="pill text" id="revealKey" type="button">Show</button></div>
+          <div class="hint">From console.typesafe.ai/keys. Stored only in this browser profile and sent only to api.typesafe.ai. Anyone with access to this Chrome profile can read it.</div>
         </div>
       </div>
+      <div class="row">
+        <label class="rl" for="dailyCallLimit">Daily call limit</label>
+        <div class="rc">
+          <input id="dailyCallLimit" class="input" type="number" min="1" step="1" style="max-width:160px">
+          <div class="hint">One call per video per goal. TypeSafe has no per-key spending limit, so this is the only guard. <span id="callsToday"></span></div>
+        </div>
       </div>
     </section>
   </main>
