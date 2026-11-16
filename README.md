@@ -12,11 +12,26 @@ Desktop Chrome only. Not affiliated with YouTube or Google.
 
 ## Install
 
-1. Download or clone this repository.
-2. Open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked** and choose the `extension` folder.
-3. The setup page opens. Paste your Jev key (create one at [console.typesafe.ai/keys](https://console.typesafe.ai/keys)), pick or write your goals, and set a daily call limit.
+Feed Filter is not in the Chrome Web Store, so Chrome installs it as an unpacked extension.
+
+1. Download `feed-filter-<version>.zip` from the [latest release](https://github.com/ranawaqas-ai/feed-filter/releases/latest).
+2. Unzip it into a folder you will keep, for example `Documents/feed-filter-0.2.0`. Chrome loads the extension from this folder every time it starts, so do not delete it or leave it in Downloads if you clear that folder.
+3. Open `chrome://extensions` and turn on **Developer mode** (top right).
+4. Click **Load unpacked** and choose the unzipped folder, the one that contains `manifest.json`.
+5. The setup page opens. Paste your Jev key (create one at [console.typesafe.ai/keys](https://console.typesafe.ai/keys)), pick or write your goals, and set a daily call limit.
+6. Optional: click the puzzle icon in the toolbar and pin Feed Filter, so its popup is one click away.
 
 Until setup is saved, YouTube looks as usual.
+
+### Updating
+
+Download the new zip and unzip its files over the same folder, replacing the old ones. Then click the reload arrow on Feed Filter's card in `chrome://extensions`. Your key, goals and history are kept.
+
+Loading the new version from a different folder installs it as a separate extension, with its own empty settings. Remove the old one if you do that.
+
+### Uninstalling
+
+Click **Remove** on Feed Filter's card in `chrome://extensions`. This deletes the key, goals and history stored in Chrome. Then delete the folder.
 
 ## Cost
 
