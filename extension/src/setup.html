@@ -6,42 +6,96 @@
 <title>Set up Feed Filter</title>
 <link rel="stylesheet" href="ui.css">
 <style>
-  .wrap { max-width: 720px; margin: 0 auto; padding: 24px 16px 64px; }
-  .head { display: flex; align-items: center; gap: 16px; margin: 8px 0 8px; }
-  .head h1 { font: 700 28px/36px var(--font); margin: 0; }
-  .lead { color: var(--text-2); margin: 0 0 8px; }
-  .step { border: 1px solid var(--divider); border-radius: 12px; padding: 20px 24px; margin-top: 24px; }
-  .step h2 { font: 500 18px/26px var(--font); margin: 0; display: flex; align-items: center; gap: 12px; }
-  .step h2 .n { width: 28px; height: 28px; border-radius: 14px; background: var(--surface); display: inline-flex; align-items: center; justify-content: center; font-size: 14px; flex: none; }
-  .step .sd { color: var(--text-2); margin: 6px 0 16px; }
+  body { background: #F9F9F9; }
+  @media (prefers-color-scheme: dark) { body { background: var(--bg); } }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 32px 16px 64px; }
+  .frame { background: var(--bg); border-radius: 16px; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(0, 0, 0, 0.05); padding: 32px 40px 28px; }
+  @media (prefers-color-scheme: dark) { .frame { background: #181818; box-shadow: 0 0 0 1px var(--divider); } }
+  .brand { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; font: 500 18px/1 var(--font); }
+  .steps { display: flex; align-items: center; gap: 6px; margin-bottom: 24px; }
+  .steps span { width: 36px; height: 4px; border-radius: 2px; background: var(--divider); }
+  .steps span.on { background: var(--text); }
+  .steps em { font-style: normal; font-size: 12px; color: var(--text-2); margin-left: 8px; }
+  h1 { font: 700 28px/36px var(--font); margin: 0 0 8px; }
+  h1:focus-visible { outline: none; } /* focused by script on each step, for screen readers */
+  .lead { color: var(--text-2); font-size: 16px; line-height: 24px; margin: 0 0 24px; }
+  .nav { display: flex; align-items: center; gap: 12px; margin-top: 28px; flex-wrap: wrap; }
+  .nav .sp { flex: 1; }
+  .hint { font-size: 12px; line-height: 18px; color: var(--text-2); margin-top: 6px; }
+  .err { color: var(--bad); }
+  /* Welcome: a feed before and after */
+  .ba { display: grid; grid-template-columns: 1fr 28px 1fr; gap: 12px; align-items: center; }
+  .ba h2 { font: 500 13px/18px var(--font); color: var(--text-2); margin: 0 0 8px; }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .tile .th { aspect-ratio: 16 / 9; border-radius: 6px; }
+  .tile i { display: block; height: 6px; border-radius: 3px; background: var(--divider); margin-top: 6px; }
+  .tile i.s { width: 60%; }
+  .tile.keep .th { box-shadow: 0 0 0 2px var(--ongoal); }
+  .tile.gone { opacity: 0.18; }
+  .arrow { font-size: 22px; color: var(--text-3); text-align: center; }
+  .three { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 28px; }
+  .three div { font-size: 13px; line-height: 18px; color: var(--text-2); }
+  .three b { display: block; color: var(--text); font-weight: 500; font-size: 14px; margin-bottom: 2px; }
+  /* Goal */
+  .q { margin-top: 20px; }
+  .q label { display: block; font-weight: 500; margin-bottom: 2px; }
+  .q small { display: block; color: var(--text-2); font-size: 12px; margin-bottom: 6px; }
+  .q textarea.input { min-height: 44px; resize: vertical; }
+  .examples { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .examples .chip[aria-pressed="true"]:hover { background: var(--inverse-bg); } /* ui.css greys every hovered chip, which hides the white label */
+  .draft { margin-top: 20px; background: var(--surface); border-radius: 12px; padding: 14px 16px; }
+  .draft .k { font-size: 12px; color: var(--text-2); margin-bottom: 4px; }
+  .draft b { font-weight: 500; }
+  .draft p { margin: 4px 0 0; font-size: 13px; line-height: 18px; overflow-wrap: anywhere; }
+  .draft .not { color: var(--filtered); }
+  /* Key and limit */
   .secret { display: flex; gap: 8px; align-items: center; }
-  .hint { font-size: 12px; color: var(--text-2); margin-top: 6px; line-height: 16px; }
-  .status { display: flex; align-items: center; gap: 8px; margin-top: 12px; min-height: 20px; }
-  .goal { border: 1px solid var(--divider); border-radius: 12px; padding: 12px 16px; margin-top: 12px; }
-  .goal.on { border-color: var(--blue); box-shadow: 0 0 0 1px var(--blue); }
-  .goal .top { display: flex; align-items: center; gap: 12px; }
-  .goal .top input[type="checkbox"] { width: 18px; height: 18px; margin: 0; accent-color: var(--blue); flex: none; }
-  .goal .top .input { flex: 1; font-weight: 500; }
-  .goal textarea.input { margin-top: 8px; min-height: 72px; }
-  .actions { display: flex; gap: 12px; align-items: center; margin-top: 24px; flex-wrap: wrap; }
-  #msg { color: var(--bad); }
-  #done { text-align: center; padding: 48px 16px; }
-  #done h2 { font: 700 24px/32px var(--font); margin: 16px 0 8px; }
-  @media (max-width: 520px) { .step { padding: 16px; } }
+  .status { display: flex; align-items: center; gap: 8px; margin-top: 10px; min-height: 20px; }
+  .row { display: flex; align-items: center; gap: 12px; margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--divider); }
+  .row .t { flex: 1; }
+  .row .t label { font-weight: 500; display: block; }
+  .row .t span { font-size: 13px; color: var(--text-2); }
+  .row input { width: 120px; text-align: right; }
+  @media (max-width: 560px) { .frame { padding: 24px 20px; } .three { grid-template-columns: 1fr; } .ba { grid-template-columns: 1fr; } .arrow { display: none; } }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <div class="head">
-    <svg class="mark" width="40" height="40" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="20" fill="var(--mark)"/><path d="M11 13h18l-7 8v6l-4 2v-8z" fill="#fff"/></svg>
-    <h1>Set up Feed Filter</h1>
-  </div>
-  <p class="lead">Feed Filter blurs YouTube home and sidebar cards until Jev has checked each video against your goals. Until setup is finished, YouTube looks as usual.</p>
+  <section class="frame" id="welcome" aria-labelledby="h0" hidden>
+    <div class="brand"><svg class="mark" width="36" height="36" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="20" fill="var(--mark)"/><path d="M11 13h18l-7 8v6l-4 2v-8z" fill="#fff"/></svg>Feed Filter</div>
+    <h1 id="h0" tabindex="-1">YouTube shows you what you click.<br>See what you came for.</h1>
+    <p class="lead">Tell Feed Filter what you want from YouTube. It checks every video on your home feed and keeps the ones that serve you.</p>
+    <div class="ba" aria-hidden="true">
+      <div><h2>Your feed today</h2><div class="grid"><div class="tile"><div class="th" style="background:hsl(12 30% 78%)"></div><i></i><i class="s"></i></div><div class="tile"><div class="th" style="background:hsl(210 30% 78%)"></div><i></i><i class="s"></i></div><div class="tile"><div class="th" style="background:hsl(48 30% 78%)"></div><i></i><i class="s"></i></div><div class="tile"><div class="th" style="background:hsl(280 30% 78%)"></div><i></i><i class="s"></i></div><div class="tile"><div class="th" style="background:hsl(150 30% 78%)"></div><i></i><i class="s"></i></div><div class="tile"><div class="th" style="background:hsl(330 30% 78%)"></div><i></i><i class="s"></i></div></div></div>
+      <div class="arrow">&rarr;</div>
+      <div><h2>With your goal</h2><div class="grid"><div class="tile gone"><div class="th" style="background:hsl(12 30% 78%)"></div><i></i><i class="s"></i></div><div class="tile keep"><div class="th" style="background:hsl(210 30% 78%)"></div><i></i><i class="s"></i></div><div class="tile gone"><div class="th" style="background:hsl(48 30% 78%)"></div><i></i><i class="s"></i></div><div class="tile gone"><div class="th" style="background:hsl(280 30% 78%)"></div><i></i><i class="s"></i></div><div class="tile keep"><div class="th" style="background:hsl(150 30% 78%)"></div><i></i><i class="s"></i></div><div class="tile gone"><div class="th" style="background:hsl(330 30% 78%)"></div><i></i><i class="s"></i></div></div></div>
+    </div>
+    <div class="three">
+      <div><b>1. Say what you want</b>Two questions, in your own words.</div>
+      <div><b>2. Add your key</b>Scoring runs on your own Jev key.</div>
+      <div><b>3. See your feed's score</b>How much of today's feed serves you.</div>
+    </div>
+    <div class="nav"><span class="muted small">About 2 minutes. Until setup is finished, YouTube looks as usual.</span><span class="sp"></span><button class="pill primary" id="start" type="button">Get started</button></div>
+  </section>
 
-  <form id="form">
-    <section class="step" aria-labelledby="s1">
-      <h2 id="s1"><span class="n">1</span>Your Jev key</h2>
-      <p class="sd">Create a key at console.typesafe.ai/keys. Calls are billed to your TypeSafe account.</p>
+  <form id="form" novalidate>
+    <section class="frame" id="stepGoal" aria-labelledby="h1" hidden>
+      <div class="steps" aria-hidden="true"><span class="on"></span><span></span><span></span><em>Step 1 of 3</em></div>
+      <h1 id="h1" tabindex="-1">What do you want from YouTube?</h1>
+      <p class="lead">Two questions. Your answers become your goal.</p>
+      <div class="examples"><span class="muted small">Or start from an example</span><span class="chips" id="examples"></span></div>
+      <div class="q"><label for="need">What do you need from YouTube?</label><small>What you would be glad you watched.</small>
+        <textarea id="need" class="input" rows="2" maxlength="1500" placeholder="For example: Learning to program. Tutorials and project walkthroughs with real code"></textarea></div>
+      <div class="q"><label for="skip">What pulls you in that you would rather skip?</label><small>What you click and regret. Put a comma between each one. You can leave this empty.</small>
+        <textarea id="skip" class="input" rows="2" maxlength="500" placeholder="For example: tech drama, salary reveals, reaction videos"></textarea></div>
+      <div class="draft" id="draft" hidden><div class="k">Your goal</div><b id="draftName"></b><p id="draftText"></p></div>
+      <div class="nav"><span class="err" id="goalMsg" role="alert"></span><span class="sp"></span><button class="pill text" id="backToWelcome" type="button">Back</button><button class="pill primary" id="toKey" type="button">Continue</button></div>
+    </section>
+
+    <section class="frame" id="stepKey" aria-labelledby="h2" hidden>
+      <div class="steps" aria-hidden="true"><span class="on"></span><span class="on"></span><span></span><em>Step 2 of 3</em></div>
+      <h1 id="h2" tabindex="-1">Add your Jev key</h1>
+      <p class="lead">Jev is the model that checks each video against your goal. Create a key at <a href="https://console.typesafe.ai/keys" target="_blank" rel="noopener">console.typesafe.ai/keys</a>. Calls are billed to your TypeSafe account.</p>
       <div class="secret">
         <input id="jevKey" class="input" type="password" autocomplete="off" spellcheck="false" aria-label="Jev API key" placeholder="Paste your key">
         <button class="pill text" id="revealKey" type="button">Show</button>
@@ -49,33 +103,12 @@
       </div>
       <div class="status" role="status"><span class="dot wait" id="keyDot" hidden></span><span id="keyText"></span></div>
       <div class="hint">Stored only in this Chrome profile and sent only to api.typesafe.ai. Anyone with access to this profile can read it.</div>
+      <div class="row"><div class="t"><label for="dailyCallLimit">Daily call limit</label><span>One call per video per goal. Scoring stops for the day at this number. TypeSafe has no per-key spending limit, so this is the guard.</span></div>
+        <input id="dailyCallLimit" class="input" type="number" min="1" step="1"></div>
+      <div class="nav"><span class="muted small">Opens YouTube and checks your home feed, about 30 calls.</span><span class="sp"></span><button class="pill text" id="backToGoal" type="button">Back</button><button class="pill primary" id="save" type="submit">Save and check my feed</button></div>
+      <div class="err" id="msg" role="alert" style="margin-top:12px"></div>
     </section>
-
-    <section class="step" aria-labelledby="s2">
-      <h2 id="s2"><span class="n">2</span>Your goals</h2>
-      <p class="sd">Pick at least one, edit the wording, or write your own. Each video is checked against every goal you keep, and the best match decides what you see. Wording works best as "what you want. Not: what to leave out."</p>
-      <div id="goals"></div>
-      <div class="actions" style="margin-top:12px"><button class="pill" id="addGoal" type="button">Add your own goal</button></div>
-    </section>
-
-    <section class="step" aria-labelledby="s3">
-      <h2 id="s3"><span class="n">3</span>Daily call limit</h2>
-      <p class="sd">One call per video per goal. A long evening on YouTube with three goals can use a few thousand. TypeSafe has no per-key spending limit, so this is the guard.</p>
-      <input id="dailyCallLimit" class="input" type="number" min="1" step="1" style="max-width:160px" aria-label="Daily call limit">
-    </section>
-
-    <div class="actions">
-      <button class="pill primary" id="save" type="submit">Save and start</button>
-      <span id="msg" role="alert"></span>
-    </div>
   </form>
-
-  <section id="done" hidden>
-    <svg class="mark" width="56" height="56" viewBox="0 0 40 40" aria-hidden="true" style="margin:0 auto"><circle cx="20" cy="20" r="20" fill="var(--mark)"/><path d="M11 13h18l-7 8v6l-4 2v-8z" fill="#fff"/></svg>
-    <h2>You're set</h2>
-    <p class="muted">Open YouTube, or reload a YouTube tab that is already open.</p>
-    <div class="actions" style="justify-content:center"><button class="pill primary" id="openYouTube" type="button">Open YouTube</button></div>
-  </section>
 </div>
 <script src="shared/core.js"></script>
 <script src="pages.js"></script>

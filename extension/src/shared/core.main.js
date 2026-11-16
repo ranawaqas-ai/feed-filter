@@ -254,6 +254,31 @@
     return `${head}${NOT_MARK}${list}.`;
   }
 
+  // The first-run goal, from the setup page's two answers: what the user needs from YouTube,
+  // and what pulls them in that they would rather skip (commas or new lines between items).
+  function draftGoal(need, skip) {
+    let want = (need || "").trim().replace(/\s+/g, " ");
+    const nots = (skip || "").split(/[,\n]/).map((s) => s.trim().replace(/\.$/, "").replace(/^or /, "")).filter(Boolean);
+    const name = want.split(/[.:,]/)[0].trim().slice(0, 40).trim();
+    if (nots.length && want && !/[.!?]$/.test(want)) want += ".";
+    return { name, text: joinGoal(want, nots) };
+  }
+
+  // What the first-run panel reports for the home cards on the page, from their states.
+  // Cards that could not be judged are counted apart, so "N of M" covers verdicts only.
+  function feedScore(states) {
+    const c = { onGoal: 0, maybe: 0, hidden: 0, failed: 0, pending: 0 };
+    for (const s of states) {
+      if (s === "show" || s === "revealed") c.onGoal += 1;
+      else if (s === "uncertain") c.maybe += 1;
+      else if (s === "hide") c.hidden += 1;
+      else if (s === "error") c.failed += 1;
+      else c.pending += 1;
+    }
+    c.checked = c.onGoal + c.maybe + c.hidden;
+    return c;
+  }
+
   function goalName(goals, id) {
     if (id === "earlier") return "An earlier goal";
     const g = (goals || []).find((x) => x.id === id);
@@ -741,7 +766,7 @@
 
   const api = { VIDEO_ID, HOME_CARD, SIDEBAR_CARD, videoPayload, goalsKey, cardKey, tallyId, parseDuration, parseViews, extractLockup, extractShortsLockup, extractFromData,
     extractFromDom, videoIdFromHref, detectLanguage, applyRules, activeGoals, decideScored, band, migrateSettings, localDay, aggregate, DEFAULT_SETTINGS, EXAMPLE_GOALS, setupComplete,
-    splitGoal, joinGoal, goalName, describe, insights, languageName, driftShare, driftOn, formatVideo,
+    splitGoal, joinGoal, draftGoal, feedScore, goalName, describe, insights, languageName, driftShare, driftOn, formatVideo,
     PROFILE, profileItems, profileLines, topicsFromReply, feedProfile, goalsExcluding };
   root.YFF = Object.assign(root.YFF || {}, api);
   if (typeof module !== "undefined" && module.exports) module.exports = api;
