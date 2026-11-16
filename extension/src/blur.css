@@ -48,12 +48,12 @@ html[data-yff-reveal]:not([data-yff-off]) [data-yff-state="hide"] > :not(.yff-ov
 }
 
 /* Filtering paused for this tab: no overlays or drift notice either. */
-html[data-yff-off] :is(.yff-overlay, #yff-drift) { display: none !important; }
+html[data-yff-off] :is(.yff-overlay, #yff-drift, #yff-firstrun) { display: none !important; }
 
 /* ---- per-card overlay ----------------------------------------------------------------
    Laid over the card; only its controls take clicks. Follows YouTube's light and dark theme. */
 [data-yff-state] { position: relative; }
-.yff-overlay, #yff-drift {
+.yff-overlay, #yff-drift, #yff-firstrun {
   /* YouTube marks its dark theme with html[dark]. */
   --yff-text: #0F0F0F;
   --yff-text-2: #606060;
@@ -63,7 +63,7 @@ html[data-yff-off] :is(.yff-overlay, #yff-drift) { display: none !important; }
   --yff-divider: #E5E5E5;
   --yff-blue: #065FD4;
 }
-html[dark] .yff-overlay, html[dark] #yff-drift {
+html[dark] .yff-overlay, html[dark] #yff-drift, html[dark] #yff-firstrun {
   --yff-text: #F1F1F1;
   --yff-text-2: #AAAAAA;
   --yff-box: #272727;
@@ -226,3 +226,38 @@ html[data-yff-reveal] [data-yff-state="hide"] > .yff-overlay .yff-filtered-only 
 }
 #yff-drift .yff-drift-acts button:hover { background: var(--yff-hover); }
 #yff-drift .yff-drift-acts .yff-drift-dismiss { color: var(--yff-text); }
+
+/* First-run panel: fixed at the bottom right of the home page until it is closed. */
+#yff-firstrun {
+  position: fixed; right: 24px; bottom: 24px; z-index: 3000; box-sizing: border-box;
+  width: min(360px, calc(100vw - 48px)); padding: 16px 18px; border-radius: 14px;
+  background: var(--yff-menu); color: var(--yff-text); font: 400 13px/18px Roboto, Arial, sans-serif;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.28), 0 0 0 1px var(--yff-divider);
+}
+#yff-firstrun [hidden] { display: none; }
+#yff-firstrun .yff-fr-head { display: flex; align-items: center; gap: 8px; color: var(--yff-text-2); margin-bottom: 10px; }
+#yff-firstrun .yff-fr-head svg { width: 22px; height: 22px; flex: none; }
+#yff-firstrun .yff-fr-head b { flex: 1; font-weight: 500; }
+#yff-firstrun button { border: 0; margin: 0; cursor: pointer; background: transparent; color: var(--yff-text); font: 500 14px Roboto, Arial, sans-serif; }
+#yff-firstrun button:hover { opacity: 0.8; }
+#yff-firstrun .yff-fr-x { width: 28px; height: 28px; border-radius: 14px; font-size: 20px; line-height: 28px; padding: 0; color: var(--yff-text-2); }
+#yff-firstrun .yff-fr-title { font-size: 20px; line-height: 26px; font-weight: 700; }
+#yff-firstrun .yff-fr-title em { font-style: normal; color: var(--yff-blue); }
+#yff-firstrun .yff-fr-sub { margin-top: 4px; color: var(--yff-text-2); overflow-wrap: anywhere; }
+#yff-firstrun .yff-fr-bar { display: flex; gap: 2px; height: 8px; margin-top: 14px; border-radius: 4px; overflow: hidden; background: var(--yff-divider); }
+#yff-firstrun .yff-fr-bar span { display: block; height: 100%; transition: width 0.2s; }
+#yff-firstrun .yff-fr-bar .yff-fr-on, #yff-firstrun .yff-fr-legend .yff-fr-on::before { background: var(--yff-blue); }
+#yff-firstrun .yff-fr-bar .yff-fr-maybe, #yff-firstrun .yff-fr-legend .yff-fr-maybe::before { background: #AAAAAA; }
+#yff-firstrun .yff-fr-bar .yff-fr-hidden, #yff-firstrun .yff-fr-legend .yff-fr-hidden::before { background: #E07B39; }
+#yff-firstrun .yff-fr-legend { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 8px; font-size: 12px; color: var(--yff-text-2); }
+#yff-firstrun .yff-fr-legend span { display: inline-flex; align-items: center; gap: 6px; }
+#yff-firstrun .yff-fr-legend span::before { content: ""; width: 8px; height: 8px; border-radius: 4px; }
+#yff-firstrun .yff-fr-acts { display: flex; align-items: center; gap: 6px; margin-top: 14px; }
+#yff-firstrun .yff-fr-acts span { flex: 1; }
+#yff-firstrun .yff-fr-acts button { height: 32px; padding: 0 12px; border-radius: 16px; white-space: nowrap; }
+#yff-firstrun .yff-fr-acts .yff-fr-reveal { padding: 0 6px; color: var(--yff-blue); }
+#yff-firstrun .yff-fr-acts .yff-fr-adjust { background: var(--yff-hover); }
+#yff-firstrun .yff-fr-acts .yff-fr-done { background: var(--yff-text); color: var(--yff-menu); }
+#yff-firstrun[data-state="checking"] :is(.yff-fr-legend, .yff-fr-acts),
+#yff-firstrun:is([data-state="empty"], [data-state="down"]) :is(.yff-fr-bar, .yff-fr-legend, .yff-fr-reveal),
+#yff-firstrun[data-state="empty"] .yff-fr-adjust { display: none; }

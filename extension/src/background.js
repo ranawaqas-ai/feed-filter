@@ -154,6 +154,9 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         return refreshTopics(s);
       case "topicsHealth":
         return s.anthropicKey ? topicClient(s).check() : { error: "no Anthropic key set" };
+      case "openOptions":
+        await chrome.runtime.openOptionsPage();
+        return { ok: true };
       case "counts":
         await setCounts(sender.tab && sender.tab.id, msg.counts, msg.off);
         return { ok: true };

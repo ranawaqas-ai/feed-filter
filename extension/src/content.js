@@ -28,6 +28,7 @@
   let waitingForSetup = false; // no key or no active goal yet: YouTube is left as it is
   let driftActive = false; // the drift condition, see YFF.driftOn
   let driftDismissed = ""; // local day "Not today" was pressed
+  let firstRun = ""; // "pending" from the setup page's save until the first-run panel is closed
 
   const html = () => document.documentElement;
   const tabOff = () => sessionStorage.getItem("yff-off") === "1";
@@ -370,6 +371,7 @@
   function sendCounts() {
     countsTimer = null;
     updateDrift();
+    updateFirstRun();
     const c = counts();
     html().dataset.yffCounts = JSON.stringify(c); // read by the end-to-end check
     chrome.runtime.sendMessage({ type: "counts", counts: c, off: tabOff() }).catch(() => {});
@@ -473,6 +475,129 @@
     fillDriftGoals(panel);
     panel.querySelector(".yff-drift-body").textContent =
       `Of ${share.scored} videos scored, ${share.fit} fit your goals (${Math.round(share.percent)}% rejected).`;
+  }
+
+  // ---- first-run check -------------------------------------------------------------------
+  // After the setup page saves, a panel at the bottom right of the home page counts the cards
+  // as they are checked, then reports how many serve the goals. The numbers are taken once,
+  // when the first load has been scored, and the panel stays until Done or the X is pressed.
+  const FIRST_RUN_EMPTY_MS = 8000; // no card by then: the home feed is empty
+  const FIRST_RUN_QUIET_MS = 1500; // nothing waiting for this long: the first load is scored
+  const FIRST_RUN_MAX_MS = 30000; // report what is scored by then, however much is still loading
+  let firstRunScore = null;
+  let firstRunSince = 0;
+  let firstRunQuiet = null;
+  const onHome = () => location.pathname === "/";
+
+  function homeScore() {
+    return Y.feedScore([...document.querySelectorAll(HOME)].filter(onVisiblePage).map((h) => h.dataset.yffState));
+  }
+
+  function buildFirstRunPanel() {
+    const panel = document.createElement("section");
+    panel.id = "yff-firstrun";
+    panel.setAttribute("aria-label", "Feed Filter first check");
+    panel.innerHTML = '<div class="yff-fr-head">' + MARK_SVG + '<b>Feed Filter</b><button type="button" class="yff-fr-x" aria-label="Close">\u00d7</button></div>' +
+      '<div class="yff-fr-title" role="status"></div><div class="yff-fr-sub"></div>' +
+      '<div class="yff-fr-bar"><span class="yff-fr-on"></span><span class="yff-fr-maybe"></span><span class="yff-fr-hidden"></span></div>' +
+      '<div class="yff-fr-legend"><span class="yff-fr-on"></span><span class="yff-fr-maybe"></span><span class="yff-fr-hidden"></span></div>' +
+      '<div class="yff-fr-acts"><button type="button" class="yff-fr-reveal">See what was hidden</button><span></span>' +
+      '<button type="button" class="yff-fr-adjust">Adjust goal</button><button type="button" class="yff-fr-done">Done</button></div>';
+    const close = () => {
+      firstRun = "done";
+      chrome.storage.local.set({ firstRun }).catch(() => {});
+      updateFirstRun();
+    };
+    panel.querySelector(".yff-fr-x").addEventListener("click", close);
+    panel.querySelector(".yff-fr-done").addEventListener("click", close);
+    panel.querySelector(".yff-fr-reveal").addEventListener("click", () => {
+      html().toggleAttribute("data-yff-reveal");
+      updateFirstRun();
+    });
+    panel.querySelector(".yff-fr-adjust").addEventListener("click", () => {
+      chrome.runtime.sendMessage({ type: "openOptions" }).catch(() => {});
+    });
+    return panel;
+  }
+
+  function firstRunState(score, elapsed) {
+    if (firstRunScore) return "done";
+    if (scorerDown) return "down";
+    const nothing = !score.checked && !score.pending && !score.failed;
+    return nothing && elapsed > FIRST_RUN_EMPTY_MS ? "empty" : "checking";
+  }
+
+  // Takes the numbers once the first load is scored: nothing waiting for FIRST_RUN_QUIET_MS,
+  // or FIRST_RUN_MAX_MS gone by with something scored.
+  function settleFirstRun(score, elapsed) {
+    const quiet = score.checked > 0 && score.pending === 0;
+    if (quiet && !firstRunQuiet) {
+      firstRunQuiet = setTimeout(() => {
+        firstRunQuiet = null;
+        const now = homeScore();
+        if (firstRun === "pending" && !firstRunScore && now.checked > 0 && now.pending === 0) firstRunScore = now;
+        updateFirstRun();
+      }, FIRST_RUN_QUIET_MS);
+    } else if (!quiet && firstRunQuiet) {
+      clearTimeout(firstRunQuiet);
+      firstRunQuiet = null;
+    }
+    if (!firstRunScore && score.checked > 0 && elapsed > FIRST_RUN_MAX_MS) firstRunScore = score;
+  }
+
+  function updateFirstRun() {
+    let panel = document.getElementById("yff-firstrun");
+    if (firstRun !== "pending" || tabOff() || !onHome()) {
+      if (panel) panel.remove();
+      delete html().dataset.yffFirstRun;
+      return;
+    }
+    if (!panel) {
+      if (!document.body) return void setTimeout(updateFirstRun, 200); // document_start: no body yet
+      panel = buildFirstRunPanel();
+      document.body.appendChild(panel);
+      firstRunSince = performance.now();
+      setTimeout(updateFirstRun, FIRST_RUN_EMPTY_MS + 100);
+      setTimeout(updateFirstRun, FIRST_RUN_MAX_MS + 100);
+    }
+    const elapsed = performance.now() - firstRunSince;
+    const live = homeScore();
+    if (!firstRunScore && !scorerDown) settleFirstRun(live, elapsed);
+    const state = firstRunState(live, elapsed);
+    const score = firstRunScore || live;
+    const title = panel.querySelector(".yff-fr-title");
+    const sub = panel.querySelector(".yff-fr-sub");
+    const width = (n, of) => `${of ? (100 * n) / of : 0}%`;
+    panel.dataset.state = state;
+    title.textContent = "";
+    if (state === "done") {
+      const n = document.createElement("em");
+      n.textContent = `${score.onGoal} of ${score.checked}`;
+      title.append(n, ` videos serve your ${goals().length > 1 ? "goals" : "goal"}`);
+      const rest = score.checked - score.onGoal;
+      sub.textContent = rest ? `The other ${rest} ${rest === 1 ? "is" : "are"} what YouTube thinks will keep you watching.` : "Every video on this page serves you.";
+      for (const [cls, count, label] of [["on", score.onGoal, "on goal"], ["maybe", score.maybe, "maybe"], ["hidden", score.hidden, "hidden"]]) {
+        panel.querySelector(`.yff-fr-bar .yff-fr-${cls}`).style.width = width(count, score.checked);
+        panel.querySelector(`.yff-fr-legend .yff-fr-${cls}`).textContent = `${count} ${label}`;
+      }
+      const reveal = panel.querySelector(".yff-fr-reveal");
+      reveal.textContent = html().hasAttribute("data-yff-reveal") ? "Hide them again" : "See what was hidden";
+      reveal.hidden = !score.hidden;
+    } else if (state === "empty") {
+      title.textContent = "Nothing to check yet";
+      sub.textContent = "Your home feed is empty. That happens when you are signed out or your watch history is off.";
+    } else if (state === "down") {
+      title.textContent = "Could not check your feed";
+      sub.textContent = "Feed Filter cannot reach Jev. The message at the bottom left says why.";
+    } else {
+      const total = score.checked + score.failed + score.pending;
+      title.textContent = "Checking your home feed";
+      sub.textContent = total ? `${score.checked} of ${total} checked against ${goals().map(goalQuery).join(", ")}` : "Waiting for YouTube to load your feed.";
+      panel.querySelector(".yff-fr-bar .yff-fr-on").style.width = width(score.checked, total);
+      panel.querySelector(".yff-fr-bar .yff-fr-maybe").style.width = "0%";
+      panel.querySelector(".yff-fr-bar .yff-fr-hidden").style.width = "0%";
+    }
+    html().dataset.yffFirstRun = JSON.stringify({ state, ...score }); // read by the end-to-end check
   }
 
   function setScorerDown(down, why) {
@@ -625,15 +750,21 @@
   }
 
   async function loadSettings() {
-    const got = await chrome.storage.local.get(["settings", "overrides", "driftDismissed"]);
+    const got = await chrome.storage.local.get(["settings", "overrides", "driftDismissed", "firstRun"]);
     settings = Y.migrateSettings(got.settings);
     overrides = got.overrides || {};
     driftDismissed = got.driftDismissed || "";
+    firstRun = got.firstRun || "";
   }
 
   chrome.storage.onChanged.addListener(async (changes, area) => {
     if (area !== "local") return;
     if (changes.overrides) overrides = changes.overrides.newValue || {};
+    if (changes.firstRun) {
+      firstRun = changes.firstRun.newValue || "";
+      if (firstRun === "pending") firstRunScore = null; // setup was saved again: check afresh
+      scheduleCounts();
+    }
     if (changes.driftDismissed) {
       driftDismissed = changes.driftDismissed.newValue || "";
       scheduleCounts();
@@ -690,6 +821,7 @@
     document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeMenus(); });
     setInterval(scanSoon, 500); // catches DOM-fallback timeouts and quiet re-renders
     scanSoon();
+    scheduleCounts(); // the first-run panel must appear even when the feed never loads a card
     noteWatchPage();
   }
 

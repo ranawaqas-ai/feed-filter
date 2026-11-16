@@ -19,7 +19,7 @@ Feed Filter is not in the Chrome Web Store, so Chrome installs it as an unpacked
 2. Unzip it into a folder you will keep, for example `Documents/feed-filter-0.2.0`. Chrome loads the extension from this folder every time it starts, so do not delete it or leave it in Downloads if you clear that folder.
 3. Open `chrome://extensions` and turn on **Developer mode** (top right).
 4. Click **Load unpacked** and choose the unzipped folder, the one that contains `manifest.json`.
-5. The setup page opens. Paste your Jev key (create one at [console.typesafe.ai/keys](https://console.typesafe.ai/keys)), pick or write your goals, and set a daily call limit.
+5. The setup page opens. Answer its two questions to make your first goal, paste your Jev key (create one at [console.typesafe.ai/keys](https://console.typesafe.ai/keys)) and set a daily call limit. "Save and check my feed" then opens YouTube and a panel reports how many videos on your home feed serve the goal.
 6. Optional: click the puzzle icon in the toolbar and pin Feed Filter, so its popup is one click away.
 
 Until setup is saved, YouTube looks as usual.

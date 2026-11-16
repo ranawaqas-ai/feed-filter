@@ -420,6 +420,28 @@ test("goalsExcluding adds a topic to the But not tags of every goal that is on",
   pass("YFF.goalsExcluding: one tag per topic on each active goal, commas removed, goals that are off untouched");
 });
 
+test("draftGoal builds the first-run goal from two answers", () => {
+  const d = YFF.draftGoal("Learning to program. Tutorials with real code", "tech drama, salary reveals,\nreaction videos.");
+  assert.equal(d.name, "Learning to program");
+  assert.equal(d.text, "Learning to program. Tutorials with real code. Not: tech drama, salary reveals, or reaction videos.");
+  assert.deepEqual(YFF.splitGoal(d.text), { want: "Learning to program. Tutorials with real code.", nots: ["tech drama", "salary reveals", "reaction videos"] });
+  assert.deepEqual(YFF.draftGoal("  Home   cooking  ", ""), { name: "Home cooking", text: "Home cooking" }, "the second answer may be empty");
+  assert.equal(YFF.draftGoal("Woodworking with hand tools: joinery and sharpening", "shop tours").text,
+    "Woodworking with hand tools: joinery and sharpening. Not: shop tours.");
+  assert.equal(YFF.draftGoal("A very long first answer that runs on and on past forty characters without any stop", "x").name.length <= 40, true);
+  const example = YFF.EXAMPLE_GOALS[0];
+  const parts = YFF.splitGoal(example.text);
+  assert.equal(YFF.draftGoal(parts.want, parts.nots.join(", ")).text, example.text, "an example goal filled in and saved unchanged keeps its exact text");
+  pass("YFF.draftGoal: name from the first clause, the second answer split into Not tags, and example goals round-trip");
+});
+
+test("feedScore counts the home cards for the first-run panel", () => {
+  assert.deepEqual(YFF.feedScore(["show", "revealed", "uncertain", "hide", "hide", "error", "pending", undefined]),
+    { onGoal: 2, maybe: 1, hidden: 2, failed: 1, pending: 2, checked: 5 });
+  assert.deepEqual(YFF.feedScore([]), { onGoal: 0, maybe: 0, hidden: 0, failed: 0, pending: 0, checked: 0 });
+  pass("YFF.feedScore: on goal, maybe and hidden make up the checked total; failed and pending cards stay out of it");
+});
+
 test("migrateSettings version 5 drops the proxy settings", () => {
   const proxyUser = YFF.migrateSettings({ settingsVersion: 4, scorer: "proxy", proxyUrl: "http://127.0.0.1:8787", proxySecret: "s",
     dailyCallLimit: 15000, goals: [YFF.EXAMPLE_GOALS[0]], blocklist: ["x"] });
