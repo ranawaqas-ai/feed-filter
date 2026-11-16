@@ -58,6 +58,17 @@
   .rrow:last-child { border-bottom: 0; }
   .strip { display: flex; align-items: center; gap: 16px; padding: 16px 24px; color: var(--text-2); }
   #error { color: var(--bad); }
+  .lead { font-size: 20px; font-weight: 500; line-height: 28px; margin: 16px 0 4px; }
+  .trow { display: grid; grid-template-columns: 56px 1fr auto; gap: 16px; align-items: center; padding: 14px 0; border-bottom: 1px solid var(--divider); }
+  .trow:last-child { border-bottom: 0; }
+  .trow .tpct { font-size: 22px; text-align: right; font-variant-numeric: tabular-nums; }
+  .trow .tname { font-weight: 500; }
+  .trow .tbar { height: 6px; border-radius: 3px; background: var(--divider); margin: 6px 0; max-width: 420px; }
+  .trow .tbar span { display: block; height: 100%; border-radius: 3px; }
+  .trow .tnote { font-size: 13px; color: var(--text-2); }
+  .trow .tact { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+  .trow.done { opacity: 0.6; }
+  .pfoot { font-size: 12px; color: var(--text-2); margin-top: 8px; padding-top: 12px; border-top: 1px solid var(--divider); }
   @media (max-width: 860px) { .guide { display: none; } .content { padding: 16px; } }
 </style>
 </head>
@@ -114,6 +125,14 @@
           <div class="muted" style="font-size:13px;margin-top:12px" id="hoursNote"></div>
         </section>
       </div>
+
+      <section class="dcard" id="profileCard">
+        <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start">
+          <div><h2 class="h2">What YouTube is feeding you</h2><p class="sub">This week's feed by topic. Blue is covered by your goals, orange is not.</p></div>
+          <button class="pill text small" id="profileRefresh" type="button" hidden>Refresh</button>
+        </div>
+        <div id="profileBody"></div>
+      </section>
 
       <section class="dcard">
         <div style="display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px">

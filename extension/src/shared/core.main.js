@@ -455,6 +455,22 @@
     return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
   }
 
+  // One log row decided as the feed would decide it now: its best goal and what happened to it.
+  function decideRow(r, settings, idByText) {
+    let best = null;
+    for (const [text, p] of Object.entries(r.pByGoalText)) {
+      if (!best || p > best.p) best = { p, goalId: idByText.get(text) || "earlier" };
+    }
+    // The feed treats a video as an error when any goal failed, so a video that some goal
+    // never scored that day is not judged here either, whatever the other goals said.
+    const partial = (r.goalTexts || []).some((t) => !(t in r.pByGoalText));
+    if (partial || !best) return { best: null, kind: "notJudged", reason: "not judged" };
+    const d = decideScored(r, settings, best.p, best.goalId);
+    const kind = d.state === "show" ? "highlighted" : d.state === "uncertain" ? "uncertain"
+      : d.reason.startsWith("rule:min-duration") ? "hiddenDuration" : "hiddenScore";
+    return { best, kind, reason: d.reason };
+  }
+
   // Dashboard numbers from the stats rows (one per local day and video) and the local rule tally.
   // Each row is decided again with decideScored at the current settings, so the dashboard and
   // the feed agree. Goal text that no current goal has goes to the "earlier" bucket.
@@ -468,23 +484,7 @@
     const byGoalDay = new Map();
     const decided = [];
     for (const r of stats.rows) {
-      let best = null;
-      for (const [text, p] of Object.entries(r.pByGoalText)) {
-        if (!best || p > best.p) best = { p, goalId: idByText.get(text) || "earlier" };
-      }
-      // The feed treats a video as an error when any goal failed, so a video that some goal
-      // never scored that day is not judged here either, whatever the other goals said.
-      const partial = (r.goalTexts || []).some((t) => !(t in r.pByGoalText));
-      if (partial) best = null;
-      let kind;
-      let reason = "not judged";
-      if (!best) kind = "notJudged";
-      else {
-        const d = decideScored(r, settings, best.p, best.goalId);
-        reason = d.reason;
-        kind = d.state === "show" ? "highlighted" : d.state === "uncertain" ? "uncertain"
-          : d.reason.startsWith("rule:min-duration") ? "hiddenDuration" : "hiddenScore";
-      }
+      const { best, kind, reason } = decideRow(r, settings, idByText);
       const hour = new Date(r.firstSeen * 1000).getHours();
       for (const [map, key] of [[days, r.day], [hours, hour]]) {
         if (!map.has(key)) map.set(key, empty());
@@ -552,6 +552,141 @@
     };
   }
 
+  // ---- feed profile: what YouTube is offering, by topic -----------------------------------
+  // A generative model groups titles into topics once a week (topics.js). Everything else on
+  // the dashboard card is counted here from the local log.
+  const PROFILE = { days: 28, maxItems: 1000, maxTopics: 6, minDays: 3, minItems: 20, move: 5 };
+
+  // "YYYY-MM-DD" n days before the local day `day`.
+  function dayBefore(day, n) {
+    const [y, m, d] = day.split("-").map(Number);
+    return localDay(new Date(y, m - 1, d - n));
+  }
+
+  // The videos sent to the model: each offered or watched video once, newest first.
+  function profileItems(rows, watched) {
+    const byId = new Map();
+    for (const r of [...rows, ...watched]) {
+      if (!r.videoId || !r.title) continue;
+      const prev = byId.get(r.videoId);
+      if (!prev || r.day > prev.day) byId.set(r.videoId, { videoId: r.videoId, title: r.title, channel: r.channel || "", day: r.day });
+    }
+    return [...byId.values()].sort((a, b) => (a.day < b.day ? 1 : a.day > b.day ? -1 : 0)).slice(0, PROFILE.maxItems);
+  }
+
+  function profileLines(items) {
+    return items.map((v, i) => `${i + 1}. ${v.title.replace(/\s+/g, " ")} | ${v.channel.replace(/\s+/g, " ")}`);
+  }
+
+  // The model's reply -> topics holding video ids. A number outside the list or already used
+  // is dropped; a reply of the wrong shape throws.
+  function topicsFromReply(text, items) {
+    let parsed;
+    try {
+      parsed = JSON.parse(text);
+    } catch (err) {
+      throw new Error("the model's reply was not JSON");
+    }
+    if (!parsed || !Array.isArray(parsed.topics)) throw new Error("the model's reply had no topics");
+    const used = new Set();
+    const topics = [];
+    for (const t of parsed.topics) {
+      if (!t || typeof t.name !== "string" || !t.name.trim() || !Array.isArray(t.items)) continue;
+      const videoIds = [];
+      for (const n of t.items) {
+        const item = Number.isInteger(n) ? items[n - 1] : null;
+        if (!item || used.has(item.videoId)) continue;
+        used.add(item.videoId);
+        videoIds.push(item.videoId);
+      }
+      if (videoIds.length) topics.push({ name: t.name.trim().slice(0, 60), sentence: String(t.sentence || "").trim().slice(0, 240), videoIds });
+    }
+    if (!topics.length) throw new Error("the model's reply had no usable topics");
+    return topics;
+  }
+
+  // The card's data. rows: log rows of the last 28 days; watched: [{day, videoId}];
+  // result: {day, oldestDay, topics: [{name, sentence, videoIds}]} from the last run, or null.
+  function feedProfile({ rows, watched, result, settings, today }) {
+    if (!result || !result.topics || !result.topics.length) return null;
+    const goals = activeGoals(settings);
+    // Log rows are keyed by the goal text they were scored with. Adding a "But not" tag changes
+    // that text, so a row also belongs to the goal with the same text before " Not: ".
+    const byText = new Map(goals.map((g) => [g.text, g.id]));
+    const byWant = new Map(goals.map((g) => [splitGoal(g.text).want, g.id]));
+    const idByText = { get: (text) => byText.get(text) || byWant.get(splitGoal(text).want) };
+    const topicOf = new Map();
+    result.topics.forEach((t, i) => t.videoIds.forEach((id) => topicOf.set(id, i)));
+    const weekStart = dayBefore(today, 6);
+    const prevStart = dayBefore(today, 27);
+    const prevEnd = dayBefore(today, 21);
+    const stats = result.topics.map(() => ({ week: new Set(), prev: new Set(), days: new Set(), videos: new Map(), watched: new Set() }));
+    const weekAll = new Set();
+    const prevAll = new Set();
+    const logDays = new Set();
+    for (const r of rows) {
+      logDays.add(r.day);
+      const inWeek = r.day >= weekStart && r.day <= today;
+      const inPrev = r.day >= prevStart && r.day <= prevEnd;
+      if (inWeek) weekAll.add(r.videoId);
+      if (inPrev) prevAll.add(r.videoId);
+      const s = stats[topicOf.get(r.videoId)];
+      if (!s) continue;
+      if (inWeek) s.week.add(r.videoId);
+      if (inPrev) s.prev.add(r.videoId);
+      s.days.add(r.day);
+      const d = decideRow(r, settings, idByText);
+      const seen = s.videos.get(r.videoId);
+      const visible = d.kind === "highlighted" || d.kind === "uncertain";
+      if (!seen || (visible && !seen.visible)) s.videos.set(r.videoId, { visible, goalId: d.best ? d.best.goalId : null });
+    }
+    for (const w of watched) {
+      const s = stats[topicOf.get(w.videoId)];
+      if (s) s.watched.add(w.videoId);
+    }
+    const share = (n, total) => (total ? (100 * n) / total : 0);
+    // A topic seen on few days is YouTube exploring. A log younger than that asks for every day it has.
+    const minDays = Math.min(PROFILE.minDays, logDays.size);
+    const topics = result.topics.map((t, i) => {
+      const s = stats[i];
+      const seen = [...s.videos.values()];
+      const visible = seen.filter((v) => v.visible);
+      const covered = seen.length > 0 && visible.length * 2 >= seen.length;
+      const counts = new Map();
+      for (const v of visible) if (v.goalId && v.goalId !== "earlier") counts.set(v.goalId, (counts.get(v.goalId) || 0) + 1);
+      const goalId = covered && counts.size ? [...counts.entries()].sort((a, b) => b[1] - a[1])[0][0] : null;
+      const now = share(s.week.size, weekAll.size);
+      // Both weeks are grouped by the same run, so they compare like with like. The older
+      // week must have been sent in full (the list is capped) and hold enough videos.
+      const comparable = prevAll.size >= PROFILE.minItems && !!result.oldestDay && result.oldestDay <= prevStart;
+      const change = comparable ? Math.round(now - share(s.prev.size, prevAll.size)) : null;
+      return { name: t.name, sentence: t.sentence, share: Math.round(now), videos: s.week.size, days: s.days.size,
+        change: change !== null && Math.abs(change) >= PROFILE.move ? change : null,
+        watched: s.watched.size, covered, goalId,
+        fading: covered && change !== null && change <= -PROFILE.move };
+    }).filter((t) => t.videos > 0 && t.days >= minDays)
+      .sort((a, b) => b.share - a.share).slice(0, PROFILE.maxTopics);
+    const top = topics.find((t) => !t.covered);
+    const headline = !weekAll.size ? "Nothing was scored this week yet."
+      : !topics.length ? "No topic stands out in this week's feed yet."
+      : top ? `${top.share}% of your feed this week is ${top.name}, and no goal covers it.`
+      : "Every main topic in your feed this week is covered by a goal.";
+    return { day: result.day, weekVideos: weekAll.size, headline, topics,
+      other: Math.max(0, 100 - topics.reduce((n, t) => n + t.share, 0)) };
+  }
+
+  // "Not for me": the topic joins the "But not" tags of every goal that is on. Commas would
+  // split the tag when the goal text is read back, so they are dropped.
+  function goalsExcluding(goals, topicName) {
+    const tag = String(topicName || "").replace(/[,.]/g, " ").replace(/\s+/g, " ").trim().toLowerCase();
+    if (!tag) return goals;
+    return goals.map((g) => {
+      if (g.off) return g;
+      const { want, nots } = splitGoal(g.text);
+      return nots.includes(tag) ? g : { ...g, text: joinGoal(want, [...nots, tag]) };
+    });
+  }
+
   // Offered on the setup page as starting points; nothing is preset. Each follows the
   // "want. Not: a, b, or c." shape the settings page edits.
   const EXAMPLE_GOALS = [
@@ -571,6 +706,7 @@
     hideThreshold: 0.1,
     settingsVersion: 5,
     jevKey: "", // the service worker calls Jev with it
+    anthropicKey: "", // optional; the service worker groups feed titles into topics with it
     dailyCallLimit: 3000,
     autoLoadCap: 3,
     driftPercent: 80,
@@ -605,7 +741,8 @@
 
   const api = { VIDEO_ID, HOME_CARD, SIDEBAR_CARD, videoPayload, goalsKey, cardKey, tallyId, parseDuration, parseViews, extractLockup, extractShortsLockup, extractFromData,
     extractFromDom, videoIdFromHref, detectLanguage, applyRules, activeGoals, decideScored, band, migrateSettings, localDay, aggregate, DEFAULT_SETTINGS, EXAMPLE_GOALS, setupComplete,
-    splitGoal, joinGoal, goalName, describe, insights, languageName, driftShare, driftOn, formatVideo };
+    splitGoal, joinGoal, goalName, describe, insights, languageName, driftShare, driftOn, formatVideo,
+    PROFILE, profileItems, profileLines, topicsFromReply, feedProfile, goalsExcluding };
   root.YFF = Object.assign(root.YFF || {}, api);
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);

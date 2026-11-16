@@ -75,6 +75,7 @@
     <a class="sub" href="#rulesSec">Always filter</a>
     <a class="sub" href="#sensSec">Sensitivity</a>
     <a class="sub" href="#connSec">Connection</a>
+    <a class="sub" href="#topicsSec">Feed topics</a>
   </nav>
 
   <main class="content">
@@ -177,6 +178,18 @@
         <div class="rc">
           <input id="dailyCallLimit" class="input" type="number" min="1" step="1" style="max-width:160px">
           <div class="hint">One call per video per goal. TypeSafe has no per-key spending limit, so this is the only guard. <span id="callsToday"></span></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="topicsSec" class="sec">
+      <h2 class="sh">Feed topics</h2>
+      <p class="sd">Optional. With an Anthropic key, the dashboard shows what YouTube is feeding you by topic. Once a week this browser sends the titles and channel names of videos YouTube offered you and videos you watched to Claude (api.anthropic.com), which groups them. Your goals are not sent.</p>
+      <div class="row">
+        <label class="rl" for="anthropicKey">Anthropic API key</label>
+        <div class="rc">
+          <div class="secret"><input id="anthropicKey" type="password" class="input" autocomplete="off" spellcheck="false"><button class="pill text" id="revealAnthropic" type="button">Show</button><button class="pill" id="testAnthropic" type="button">Test key</button></div>
+          <div class="hint"><span id="anthropicStatus"></span> From console.anthropic.com. Stored only in this browser profile and sent only to api.anthropic.com. One request a week, billed to your Anthropic account. Leave empty to turn the feature off.</div>
         </div>
       </div>
     </section>

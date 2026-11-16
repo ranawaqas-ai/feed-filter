@@ -352,6 +352,74 @@ test("goalsKey changes with a goal's id or text, and cardKey and tallyId name a 
   pass("YFF.goalsKey, cardKey, tallyId: goal edits change the key; ads without a title are tallied per card element");
 });
 
+test("profileItems and topicsFromReply turn the log into a numbered list and the reply into topics", () => {
+  const rows = [
+    { day: "2026-11-10", videoId: "a", title: "A  title", channel: "Ch A" },
+    { day: "2026-11-12", videoId: "a", title: "A  title", channel: "Ch A" },
+    { day: "2026-11-11", videoId: "b", title: "B title", channel: "" },
+    { day: "2026-11-11", videoId: "x", title: "", channel: "no title" },
+  ];
+  const items = YFF.profileItems(rows, [{ day: "2026-11-13", videoId: "w", title: "Watched", channel: "Ch W" }]);
+  assert.deepEqual(items.map((v) => [v.videoId, v.day]), [["w", "2026-11-13"], ["a", "2026-11-12"], ["b", "2026-11-11"]]);
+  assert.deepEqual(YFF.profileLines(items), ["1. Watched | Ch W", "2. A title | Ch A", "3. B title | "]);
+  const many = Array.from({ length: YFF.PROFILE.maxItems + 50 }, (_, i) => ({ day: "2026-11-01", videoId: `v${i}`, title: "t", channel: "c" }));
+  assert.equal(YFF.profileItems(many, []).length, YFF.PROFILE.maxItems);
+  const reply = JSON.stringify({ topics: [{ name: " Cooking ", sentence: "Recipes.", items: [2, 3, 99, 2] }, { name: "Games", sentence: "", items: [3, 1] }, { name: "", items: [1] }] });
+  assert.deepEqual(YFF.topicsFromReply(reply, items), [
+    { name: "Cooking", sentence: "Recipes.", videoIds: ["a", "b"] }, { name: "Games", sentence: "", videoIds: ["w"] }]);
+  assert.throws(() => YFF.topicsFromReply("not json", items), /not JSON/);
+  assert.throws(() => YFF.topicsFromReply('{"topics":[{"name":"x","items":[99]}]}', items), /no usable topics/);
+  pass("YFF.profileItems / topicsFromReply: one line per video, newest first, capped; numbers out of range or reused are dropped, a bad reply throws");
+});
+
+test("feedProfile counts share, change, coverage and watched videos per topic", () => {
+  const settings = YFF.migrateSettings({ goals: [{ id: "g", name: "Cooking", text: "Cooking", minDurationMinutes: 0 }], showThreshold: 0.8, hideThreshold: 0.1 });
+  const today = "2026-11-28";
+  const day = (n) => { const d = new Date(2026, 10, 28 - n); return YFF.localDay(d); };
+  const rows = [];
+  const add = (prefix, count, daysBack, p) => { for (let i = 0; i < count; i++) rows.push({ day: day(daysBack[i % daysBack.length]), videoId: `${prefix}${daysBack[0]}_${i}`,
+    title: "t", channel: "c", durationSeconds: 600, pByGoalText: { Cooking: p }, goalTexts: ["Cooking"], firstSeen: 0 }); };
+  add("cook", 10, [0, 1, 2], 0.9); add("game", 30, [0, 1, 2], 0.02); add("misc", 10, [0], 0.05); // this week: 50 videos
+  add("cook", 30, [22, 23, 24], 0.9); add("game", 5, [22, 23, 24], 0.02); add("misc", 15, [22], 0.05); // four weeks ago: 50 videos
+  const ids = (prefix) => rows.filter((r) => r.videoId.startsWith(prefix)).map((r) => r.videoId);
+  const result = { day: today, oldestDay: day(27), topics: [
+    { name: "Home cooking", sentence: "Recipes.", videoIds: ids("cook") }, { name: "Gaming", sentence: "Playthroughs.", videoIds: [...ids("game"), "w1", "w2"] },
+    { name: "One day only", sentence: "", videoIds: ids("misc0") }] };
+  const watched = [{ day: day(1), videoId: "w1" }, { day: day(2), videoId: "w2" }, { day: day(2), videoId: "w2" }, { day: day(3), videoId: "elsewhere" }];
+  const p = YFF.feedProfile({ rows, watched, result, settings, today });
+  assert.deepEqual(p.topics.map((t) => [t.name, t.share, t.change, t.covered, t.goalId, t.watched, t.fading]), [
+    ["Gaming", 60, 50, false, null, 2, false], ["Home cooking", 20, -40, true, "g", 0, true]]);
+  assert.equal(p.other, 20, "a topic seen on one day is not listed and counts as Other");
+  assert.equal(p.headline, "60% of your feed this week is Gaming, and no goal covers it.");
+  assert.equal(YFF.feedProfile({ rows, watched, result: { ...result, oldestDay: day(10) }, settings, today }).topics[0].change, null, "older week not sent in full");
+  assert.equal(YFF.feedProfile({ rows, watched, result: null, settings, today }), null);
+  // "Not for me" rewrites every goal's text; rows scored with the old text still count for the goal.
+  const tagged = { ...settings, goals: YFF.goalsExcluding(settings.goals, "Gaming") };
+  assert.equal(tagged.goals[0].text, "Cooking Not: gaming.");
+  assert.deepEqual(YFF.feedProfile({ rows, watched, result, settings: tagged, today }).topics.map((t) => [t.name, t.covered, t.goalId]),
+    [["Gaming", false, null], ["Home cooking", true, "g"]], "a new But not tag does not uncover a topic");
+  // A reworded goal no longer matches its old rows, but what was let through still counts as covered.
+  const reworded = { ...settings, goals: [{ ...settings.goals[0], text: "Recipes and technique" }] };
+  assert.deepEqual(YFF.feedProfile({ rows, watched, result, settings: reworded, today }).topics.map((t) => [t.name, t.covered, t.goalId]),
+    [["Gaming", false, null], ["Home cooking", true, null]]);
+  // A log that is two days old cannot show a topic on three days, so two days are enough.
+  const young = rows.filter((r) => r.day >= day(1));
+  assert.deepEqual(YFF.feedProfile({ rows: young, watched: [], result, settings, today }).topics.map((t) => [t.name, t.days]), [["Gaming", 2], ["Home cooking", 2]]);
+  assert.equal(YFF.feedProfile({ rows: young, watched: [], result: { ...result, topics: [result.topics[2]] }, settings, today }).headline, "No topic stands out in this week's feed yet.");
+  const covered = YFF.feedProfile({ rows: rows.filter((r) => r.videoId.startsWith("cook")), watched: [], result, settings, today });
+  assert.equal(covered.headline, "Every main topic in your feed this week is covered by a goal.");
+  pass("YFF.feedProfile: share of this week's videos, change against the same week four weeks ago, covered when half were let through, watched counted once per video");
+});
+
+test("goalsExcluding adds a topic to the But not tags of every goal that is on", () => {
+  const goals = [{ id: "a", text: "Cooking. Not: mukbang, or drama." }, { id: "b", text: "Coding" }, { id: "c", text: "Music", off: true }];
+  const out = YFF.goalsExcluding(goals, "Gaming, Walkthroughs.");
+  assert.deepEqual(out.map((g) => g.text), ["Cooking. Not: mukbang, drama, or gaming walkthroughs.", "Coding Not: gaming walkthroughs.", "Music"]);
+  assert.deepEqual(YFF.splitGoal(out[0].text).nots, ["mukbang", "drama", "gaming walkthroughs"], "reads back as one tag");
+  assert.deepEqual(YFF.goalsExcluding(out, "gaming walkthroughs"), out, "adding it twice changes nothing");
+  pass("YFF.goalsExcluding: one tag per topic on each active goal, commas removed, goals that are off untouched");
+});
+
 test("migrateSettings version 5 drops the proxy settings", () => {
   const proxyUser = YFF.migrateSettings({ settingsVersion: 4, scorer: "proxy", proxyUrl: "http://127.0.0.1:8787", proxySecret: "s",
     dailyCallLimit: 15000, goals: [YFF.EXAMPLE_GOALS[0]], blocklist: ["x"] });

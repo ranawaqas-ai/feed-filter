@@ -7,6 +7,7 @@ A Chrome extension that blurs YouTube home-feed and watch-sidebar cards until ea
 - Every filtered card can be revealed with the reason, and any card can be kept or hidden by hand from its three-dot menu.
 - When most of what YouTube offers is rejected, a notice above the feed says so and offers a search for each of your goals.
 - A dashboard shows what was let through, by goal and over time.
+- Optional: with an Anthropic key, the dashboard also shows what YouTube is feeding you by topic, which topics no goal covers, and lets you turn one into a goal or an exclusion.
 
 Desktop Chrome only. Not affiliated with YouTube or Google.
 
@@ -41,11 +42,15 @@ TypeSafe has no per-key spending limit. The **daily call limit** in the extensio
 
 ## What leaves your browser
 
-For each video, the extension sends its video ID, title, channel, length, view count and whether it is a Short, together with your goal text, to `api.typesafe.ai`. A description field is part of the request and is always empty, because feed cards carry none. Nothing else is sent: no cookies, account details or watch history.
+For each video, the extension sends its video ID, title, channel, length, view count and whether it is a Short, together with your goal text, to `api.typesafe.ai`. A description field is part of the request and is always empty, because feed cards carry none. No cookies or account details are sent, and Jev never sees what you watched.
 
 Your key is stored in this Chrome profile's extension storage and is sent only to `api.typesafe.ai`. Anyone with access to your Chrome profile can read it.
 
-Scores, the per-day log the dashboard uses, and your Keep and Hide choices stay in the browser (IndexedDB) and are deleted after 30 days.
+Scores, the per-day log the dashboard uses, your Keep and Hide choices and the list of videos you opened stay in the browser (IndexedDB) and are deleted after 30 days.
+
+### If you add an Anthropic key
+
+This part is off until you enter an Anthropic key in Settings. With a key, once a week (or when you press Refresh on the dashboard) the extension sends `api.anthropic.com` the titles and channel names of up to 1,000 videos from the last four weeks: videos YouTube offered you, and **videos you watched**. Claude groups them into topics. Your goals, video IDs, cookies and account details are not sent. The request is billed to your Anthropic account; at this size it costs roughly 0.25 US dollars. The Anthropic key is stored like the Jev key and sent only to `api.anthropic.com`.
 
 ## Writing goals
 
@@ -59,7 +64,7 @@ Each video is checked against every goal that is on, and the best match decides.
 
 | Command | What it covers |
 |---|---|
-| `node --test extension/test/*.test.mjs` | Extension logic: extraction from YouTube's card data, rules, bands, the Jev request text, the scorer (cache, cap, retries), the stats shape, settings migration |
+| `node --test extension/test/*.test.mjs` | Extension logic: extraction from YouTube's card data, rules, bands, the Jev request text, the scorer (cache, cap, retries), the stats shape, settings migration, the feed topics (the numbers on the card, the request to Claude and its reply) |
 | `cd e2e && npm install`, then `node e2e/seed_profile.mjs` and `node e2e/run_e2e.mjs` | End-to-end checks on youtube.com in a separate, logged-out Chrome for Testing profile. Needs `jev_api_key` in `.env`; one run uses about 1,000 Jev calls. |
 
 `extension/src/shared/core.js` is the shared logic. After editing it, run `node extension/sync_core.mjs` to regenerate `core.main.js`, which the page-world bridge loads.
