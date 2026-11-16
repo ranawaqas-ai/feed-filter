@@ -22,9 +22,6 @@
   .off-state { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 24px 24px 8px; }
   .off-state h1 { font-size: 20px; font-weight: 400; margin: 12px 0 0; line-height: 28px; }
   .off-state p { margin: 8px 0 0; color: var(--text-2); }
-  .cmd { padding: 12px 16px; }
-  .cmd .box { display: flex; align-items: center; gap: 8px; background: var(--surface); border-radius: 8px; padding: 4px 4px 4px 12px; }
-  .cmd code { flex: 1; }
   .actions { display: flex; justify-content: center; gap: 8px; padding: 16px; }
 </style>
 </head>
@@ -83,10 +80,6 @@
       <h1>Can't reach the scorer</h1>
       <p>Videos stay blurred until it's back, so nothing slips through unchecked.</p>
       <p class="small" id="offWhy"></p>
-    </div>
-    <div class="cmd" id="proxyCmd">
-      <div class="small muted" style="margin-bottom:6px">Start it in Terminal, from the project folder</div>
-      <div class="box"><code id="cmd">uv run python -m proxy</code><button class="pill text small" id="copy" type="button">Copy</button></div>
     </div>
     <div class="actions">
       <button class="pill" id="unfiltered" type="button">Show unfiltered</button>

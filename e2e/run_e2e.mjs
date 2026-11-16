@@ -1,11 +1,11 @@
 // End-to-end verification of the unpacked extension on youtube.com, in the separate
-// Chrome for Testing profile (logged out, seeded by seed_profile.mjs). Runs in direct mode:
-// the service worker calls Jev with jev_api_key from .env (about 1,000 calls a run), and
-// verdicts go to the test profile's IndexedDB. The "scorer unreachable" step uses proxy mode
-// pointed at a closed port. Writes results/e2e_report.json.
+// Chrome for Testing profile (logged out, seeded by seed_profile.mjs). The service worker
+// calls Jev with jev_api_key from .env (about 1,000 calls a run), and verdicts go to the test
+// profile's IndexedDB. The "scorer unreachable" step blocks the worker's requests to Jev.
+// Writes results/e2e_report.json.
 import { writeFileSync } from "node:fs";
 import path from "node:path";
-import { EXT_ID, ROOT, envValue, extensionWorker, launch, pct, setSettings, sleep } from "./lib.mjs";
+import { EXT_ID, ROOT, blockJev, envValue, extensionWorker, launch, pct, setSettings, sleep } from "./lib.mjs";
 
 const GOAL = "Deep technical AI/ML and systems engineering content, no hype or news recaps";
 const NOTHING_GOAL = "Competitive underwater basket weaving taught entirely in Old Norse";
@@ -133,12 +133,12 @@ const page = await browser.newPage();
 await page.evaluateOnNewDocument(flashMonitor, HOSTS);
 await extensionWorker(browser);
 const baseSettings = { goals: [{ id: "e2e", text: GOAL, minDurationMinutes: 0 }],
-  scorer: "direct", jevKey: envValue("jev_api_key"), dailyCallLimit: 20000, autoLoadCap: 3,
+  jevKey: envValue("jev_api_key"), dailyCallLimit: 20000, autoLoadCap: 3,
   hideShorts: true, hideNonVideo: true, allowedLanguages: [], blocklist: [], allowlist: [], showThreshold: 0.8, hideThreshold: 0.1 };
 
 // 0. Before setup (no key, no goal): YouTube is left alone; saving settings starts filtering
 // in the open tab without a reload.
-await setSettings(browser, { goals: [], jevKey: "", scorer: "direct" });
+await setSettings(browser, { goals: [], jevKey: "" });
 const fresh = await browser.newPage();
 await fresh.goto("https://www.youtube.com/", { waitUntil: "domcontentloaded" });
 await sleep(6000);
@@ -314,14 +314,18 @@ check("card reuse: no stale or early-readable card through chips and back/forwar
     frames: mon.frames, linkChecks: mon.checks, violations: mon.violations.slice(0, 3), stale: mon.stale.slice(0, 3) });
 await setSettings(browser, baseSettings);
 
-// 6. Timing: 10 loads with a fresh goal each (every card goes to Jev) and 10 with a fixed goal (proxy cache).
+// 6. Timing: 10 loads with a fresh goal each (every card goes to Jev) and 10 with a fixed goal (served from the cache).
 const timing = { jev: [], cache: [], rule: [], loads: { jev: 0, cache: 0 }, batches: { jev: 0, cache: 0 } };
 const tpage = await browser.newPage();
 await tpage.bringToFront();
 await tpage.evaluateOnNewDocument(flashMonitor, HOSTS);
+// A goal change re-scores the cards on every open YouTube page. That would put the next
+// load's videos in the cache before it starts, so no YouTube page is open when the goal changes.
+for (const p of await browser.pages()) if (p !== tpage && p.url().includes("youtube.com")) await p.goto("about:blank");
 for (const mode of ["jev", "cache"]) {
   for (let i = 0; i < TIMING_LOADS; i++) {
     const text = mode === "jev" ? `${GOAL} (timing run ${Date.now()}-${i})` : GOAL;
+    await tpage.goto("about:blank");
     await setSettings(browser, { goals: [{ id: "e2e", text, minDurationMinutes: 0 }] });
     await tpage.goto("https://www.youtube.com/", { waitUntil: "domcontentloaded" });
     await waitSettled(tpage);
@@ -338,17 +342,21 @@ const summary = (xs) => ({ n: xs.length, p50_ms: Math.round(pct(xs, 0.5)), p95_m
 report.timing = { jev: summary(timing.jev), cache: summary(timing.cache), rule: summary(timing.rule), loads: timing.loads, batches: timing.batches };
 check("timing: card inserted -> verdict applied", timing.jev.length > 50 && timing.cache.length > 50, report.timing);
 
-// 7. Proxy unreachable: model cards stay blurred, banner shows, one click disables the tab and stops proxy calls.
-await setSettings(browser, { scorer: "proxy", proxyUrl: "http://127.0.0.1:8799", proxySecret: "e2e-unreachable" });
+// 7. Scorer unreachable: model cards stay blurred, banner shows, one click disables the tab and stops scoring calls.
+// A new goal text, so nothing comes from the cache, and the worker's requests to Jev are blocked.
+await setSettings(browser, { ...baseSettings, goals: [{ id: "down", text: `${GOAL} (unreachable ${Date.now()})`, minDurationMinutes: 0 }] });
+await blockJev(browser, true);
 const down = await browser.newPage();
 await down.bringToFront();
 await down.evaluateOnNewDocument(flashMonitor, HOSTS);
 await down.goto("https://www.youtube.com/", { waitUntil: "domcontentloaded" });
-await sleep(9000);
+// A blocked call is retried four times (about 7 s of backoff) before the batch fails.
+await down.waitForSelector("#yff-banner", { timeout: 40000 }).catch(() => {});
+await sleep(1500);
 const downCards = await cardSnapshot(down);
 const banner = await down.evaluate(() => document.getElementById("yff-banner")?.innerText || null);
 mon = await down.evaluate(() => window.__yffE2E);
-check("proxy down: model cards stay blurred and banner shows",
+check("scorer unreachable: model cards stay blurred and banner shows",
   downCards.every((c) => c.state !== "show" || ["rule", "override"].includes(c.source)) && !!banner && mon.violations.length === 0,
   { cards: downCards.length, states: tally(downCards), banner, violations: mon.violations.length });
 const errCard = downCards.find((c) => c.state === "error" && c.metaId);
@@ -363,7 +371,7 @@ if (errCard) {
     return h ? { state: h.dataset.yffState, blurred: getComputedStyle(h.querySelector(":scope > #content") || h).filter.includes("blur"), url: location.href } : null;
   }, errCard.key, HOSTS);
 }
-check("proxy down: Show anyway on a failed card reveals it without navigating",
+check("scorer unreachable: Show anyway on a failed card reveals it without navigating",
   anyway?.state === "revealed" && !anyway.blurred && anyway.url === "https://www.youtube.com/", { video: errCard?.key, anyway });
 await down.evaluate(() => [...document.querySelectorAll("#yff-banner button")].find((b) => /pause/i.test(b.textContent))?.click());
 await sleep(500);
@@ -372,12 +380,13 @@ for (let i = 0; i < 2; i++) { await down.evaluate(() => window.scrollBy(0, 3000)
 const offState = await down.evaluate(() => ({ off: document.documentElement.hasAttribute("data-yff-off"),
   firstFilter: getComputedStyle(document.querySelector("ytd-rich-item-renderer > #content")).filter,
   flushes: Number(document.documentElement.dataset.yffFlushes || 0), cards: document.querySelectorAll("ytd-rich-item-renderer").length }));
-check("proxy down: one click disables the tab and stops proxy calls",
+check("scorer unreachable: one click disables the tab and stops scoring calls",
   offState.off && !offState.firstFilter.includes("blur") && offState.flushes === flushesAtOff, { ...offState, flushesAtOff });
 await down.evaluate(() => sessionStorage.removeItem("yff-off"));
 await down.close();
+await blockJev(browser, false);
 
-// 7b. Direct mode with a rejected key: new goal text, so nothing comes from the cache.
+// 7b. A rejected key: new goal text, so nothing comes from the cache.
 await setSettings(browser, { ...baseSettings, jevKey: "not-a-real-key", goals: [{ id: "k", text: `${GOAL} (${Date.now()})`, minDurationMinutes: 0 }] });
 const badKey = await browser.newPage();
 await badKey.bringToFront();
@@ -386,7 +395,7 @@ await sleep(9000);
 const badCards = await cardSnapshot(badKey);
 const badBanner = await badKey.evaluate(() => document.getElementById("yff-banner")?.innerText || null);
 const scored = badCards.filter((c) => !["rule", "override"].includes(c.source) && c.state);
-check("direct mode: a rejected key keeps model cards blurred with the reason and the banner",
+check("rejected key: model cards stay blurred with the reason and the banner",
   scored.length > 0 && scored.every((c) => c.state === "error" && /rejected the key/.test(c.reason)) && /rejected the key/.test(badBanner || ""),
   { cards: badCards.length, states: tally(badCards), reasons: [...new Set(scored.map((c) => c.reason))].slice(0, 3), banner: badBanner });
 await badKey.close();

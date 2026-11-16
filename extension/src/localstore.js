@@ -1,6 +1,6 @@
-// Direct mode's storage, in IndexedDB: the p cache, the daily call counter, the verdict log
-// (one row per local day and video) and Keep/Hide feedback. stats() returns what the proxy's
-// POST /stats returns, so the dashboard reads either. Nothing here leaves the browser.
+// The scorer's storage, in IndexedDB: the p cache, the daily call counter, the verdict log
+// (one row per local day and video) and Keep/Hide feedback. stats() returns the rows the
+// dashboard aggregates. Nothing here leaves the browser.
 (function (root) {
   "use strict";
 
@@ -8,10 +8,9 @@
   const DB_VERSION = 1;
   const KEEP_DAYS = 30;
 
-  // ---- pure parts, unit-tested against the proxy's output -------------------------------
+  // ---- pure parts, unit-tested against test/stats_fixture.json --------------------------
 
-  // Folds one judge request into the (day, video) row, as proxy/store.py stats groups the
-  // verdicts log: every goal asked about is listed, p is the max per goal text, each request
+  // Folds one judge request into the (day, video) row: every goal asked about is listed, p is the max per goal text, each request
   // counts one sighting and each failed goal call one error.
   function mergeJudged(row, day, ts, video, perGoal) {
     const r = row || { day, videoId: video.videoId, firstSeen: ts, title: "", channel: "", durationSeconds: null,

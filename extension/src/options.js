@@ -1,11 +1,11 @@
 // Settings page: goals, rules, sensitivity and the scorer connection, stored in
 // chrome.storage.local under "settings". Edits go to a draft; Save writes it.
 // Goal text is only rebuilt from its parts (want + "But not" tags) when that goal is
-// edited, because the proxy caches scores by the exact text.
+// edited, because scores are cached by the exact text.
 (async function () {
   const Y = self.YFF;
   const P = self.YFFPage;
-  const $ = (id) => document.getElementById(id);
+  const $ = P.$;
   const esc = P.esc;
   const clone = (o) => JSON.parse(JSON.stringify(o));
   const LENGTHS = [0, 4, 8, 20];
@@ -80,8 +80,8 @@
     const day = latestDayAgg();
     if (!day) return "";
     const row = day.agg.byGoal.find((x) => x.goalId === g.id);
-    if (!row || !row.offered) return `On ${dayLabel(day.agg.latestDay)}: no video matched this goal best.`;
-    return `On ${dayLabel(day.agg.latestDay)}: ${P.num(row.offered)} videos matched this goal best. ` +
+    if (!row || !row.offered) return `On ${P.dayShort(day.agg.latestDay)}: no video matched this goal best.`;
+    return `On ${P.dayShort(day.agg.latestDay)}: ${P.num(row.offered)} videos matched this goal best. ` +
       `${P.num(row.highlighted)} were on goal and ${P.num(row.highlighted + row.uncertain)} got through.`;
   }
 
@@ -189,9 +189,6 @@
 
   // ---- sensitivity ------------------------------------------------------------------------
   const toPct = (v) => Math.round(v * 100);
-  function dayLabel(day) {
-    return new Date(`${day}T12:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
-  }
 
   // The latest day with scores, decided at the draft's thresholds and goals.
   function latestDayAgg() {
@@ -224,7 +221,7 @@
       return;
     }
     const c = day.agg.latestCounts;
-    const on = `on ${dayLabel(day.agg.latestDay)}`;
+    const on = `on ${P.dayShort(day.agg.latestDay)}`;
     $("t1n").textContent = `${P.num(c.hiddenScore)} videos ${on}`;
     $("t2n").textContent = `${P.num(c.uncertain)} videos ${on}`;
     $("t3n").textContent = `${P.num(c.highlighted)} videos ${on}`;
@@ -265,37 +262,15 @@
     $("topStatus").textContent = kind === "ok" ? "Scorer connected" : kind === "bad" ? "Scorer offline" : "Checking…";
   }
 
-  // Direct: listing Jev's models proves the key without scoring anything. Proxy: health, then
-  // an empty /judge, rejected with 422 only after the secret check passes.
+  // Listing Jev's models proves the key without scoring anything.
   async function testConnection() {
     connStatus("wait", "Checking…");
-    if (draft.scorer === "direct") {
-      if (!draft.jevKey) return connStatus("bad", "Add your Jev key");
-      const h = await P.health({ scorer: "direct", jevKey: draft.jevKey });
-      return h.ok ? connStatus("ok", `Key works · Jev answered in ${h.ms} ms`) : connStatus("bad", `Can't use the key: ${h.error}`);
-    }
-    const unsaved = { scorer: "proxy", proxyUrl: $("proxyUrl").value.trim(), proxySecret: $("proxySecret").value.trim() };
-    const h = await P.health(unsaved);
-    if (!h.ok) return connStatus("bad", `Can't connect: ${h.error}`);
-    const probe = await chrome.runtime.sendMessage({ type: "testJudge", unsaved, body: { goal: "connection test", videos: [] } });
-    if (probe.error === "proxy HTTP 422") connStatus("ok", `Connected · answered in ${h.ms} ms`);
-    else connStatus("bad", `Reached the scorer, but: ${probe.error || "unexpected reply"}`);
+    if (!draft.jevKey) return connStatus("bad", "Add your Jev key");
+    const h = await P.health({ jevKey: draft.jevKey });
+    return h.ok ? connStatus("ok", `Key works · Jev answered in ${h.ms} ms`) : connStatus("bad", `Can't use the key: ${h.error}`);
   }
   $("test").addEventListener("click", testConnection);
 
-  function renderScorer() {
-    const direct = draft.scorer === "direct";
-    $("scorerDirect").checked = direct;
-    $("scorerProxy").checked = !direct;
-    $("directFields").hidden = !direct;
-    $("proxyFields").hidden = direct;
-    $("connDesc").textContent = direct
-      ? "This browser sends each video's title, channel, length and view count with your goal to Jev (api.typesafe.ai), using your key."
-      : "The scorer runs on this computer. Only titles, channels and lengths are sent to it.";
-  }
-  for (const r of document.querySelectorAll('input[name="scorer"]')) {
-    r.addEventListener("change", () => { draft.scorer = r.value; renderScorer(); changed(); testConnection(); });
-  }
   async function showUsage() {
     const u = await chrome.runtime.sendMessage({ type: "usage" }).catch(() => null);
     $("callsToday").textContent = u && u.callsToday !== null ? `Used today: ${P.num(u.callsToday)} of ${P.num(u.dailyCap)}.` : "";
@@ -303,42 +278,19 @@
   showUsage();
   $("jevKey").addEventListener("input", (e) => { draft.jevKey = e.target.value.trim(); changed(); });
   $("dailyCallLimit").addEventListener("input", (e) => { draft.dailyCallLimit = Number(e.target.value); changed(); });
-  $("revealKey").addEventListener("click", () => {
-    const shown = $("jevKey").type === "text";
-    $("jevKey").type = shown ? "password" : "text";
-    $("revealKey").textContent = shown ? "Show" : "Hide";
-  });
-  $("proxyUrl").addEventListener("input", (e) => { draft.proxyUrl = e.target.value.trim(); changed(); });
-  $("proxySecret").addEventListener("input", (e) => { draft.proxySecret = e.target.value.trim(); changed(); });
-  $("reveal").addEventListener("click", () => {
-    const shown = $("proxySecret").type === "text";
-    $("proxySecret").type = shown ? "password" : "text";
-    $("reveal").textContent = shown ? "Show" : "Hide";
-  });
+  P.bindKeyReveal($("revealKey"), $("jevKey"));
 
   // ---- save and discard ---------------------------------------------------------------------
-  // A scorer outside localhost needs host permission for its origin.
-  async function ensureHostPermission(url) {
-    const origin = new URL(url).origin + "/*";
-    if (/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?\/\*$/.test(origin)) return true;
-    return chrome.permissions.request({ origins: [origin] });
-  }
-
   function validate(s) {
     if (!(s.hideThreshold >= 0 && s.showThreshold <= 1 && s.hideThreshold <= s.showThreshold)) throw new Error("The filter mark must be at or below the highlight mark.");
     if (!s.goals.some((g) => !g.off && (g.text || "").trim())) throw new Error("Turn on at least one goal with a description.");
-    if (s.scorer === "direct") {
-      if (!s.jevKey) throw new Error("Add your Jev key, or choose the local proxy.");
-      if (!(Number.isInteger(s.dailyCallLimit) && s.dailyCallLimit > 0)) throw new Error("The daily call limit must be a whole number above 0.");
-    } else {
-      new URL(s.proxyUrl); // throws on a bad address
-    }
+    if (!s.jevKey) throw new Error("Add your Jev key.");
+    if (!(Number.isInteger(s.dailyCallLimit) && s.dailyCallLimit > 0)) throw new Error("The daily call limit must be a whole number above 0.");
   }
 
   $("save").addEventListener("click", async () => {
     try {
       validate(draft);
-      if (draft.scorer === "proxy" && !(await ensureHostPermission(draft.proxyUrl))) throw new Error("Permission for the scorer address was not granted.");
       await chrome.storage.local.set({ settings: draft });
       saved = clone(draft);
       changed();
@@ -361,11 +313,8 @@
     renderScale();
     cap.value = String(Number(draft.autoLoadCap) || 0);
     drift.value = String(DRIFT_STEPS.includes(Number(draft.driftPercent)) ? Number(draft.driftPercent) : 0);
-    renderScorer();
     $("jevKey").value = draft.jevKey || "";
     $("dailyCallLimit").value = String(draft.dailyCallLimit);
-    $("proxyUrl").value = draft.proxyUrl;
-    $("proxySecret").value = draft.proxySecret;
     changed();
   }
 

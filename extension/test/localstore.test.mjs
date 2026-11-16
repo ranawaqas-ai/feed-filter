@@ -13,7 +13,7 @@ const YFF = require("../src/shared/core.js");
 const L = require("../src/localstore.js");
 const pass = (msg) => console.log(`PASS ${msg}`);
 
-test("statsFrom over mergeJudged rows equals the proxy's Store.stats for the shared scenario", () => {
+test("statsFrom over mergeJudged rows equals the pinned stats for the fixture scenario", () => {
   const { scenario: sc, expected } = JSON.parse(readFileSync(path.join(here, "stats_fixture.json"), "utf8"));
   const rows = new Map();
   let firstVerdictDay = null;
@@ -28,5 +28,5 @@ test("statsFrom over mergeJudged rows equals the proxy's Store.stats for the sha
   const [y, m, d] = sc.today.split("-").map(Number);
   const got = L.statsFrom({ rows: [...rows.values()], feedback, firstVerdictDay, days: sc.days, today: new Date(y, m - 1, d), localDay: YFF.localDay });
   assert.deepEqual(got, expected);
-  pass(`YFFLocal.statsFrom + mergeJudged: identical to proxy.store.Store.stats on the ${sc.events.length}-event scenario`);
+  pass(`YFFLocal.statsFrom + mergeJudged: identical to the pinned stats on the ${sc.events.length}-event scenario`);
 });

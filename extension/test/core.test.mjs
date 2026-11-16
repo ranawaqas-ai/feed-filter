@@ -132,15 +132,15 @@ test("default settings preset no goals and need setup", () => {
   assert.deepEqual(s.goals, []);
   assert.deepEqual(s.allowedLanguages, []);
   assert.equal(s.hideShorts, true);
-  assert.deepEqual([s.showThreshold, s.hideThreshold, s.scorer], [0.8, 0.1, "direct"]);
+  assert.deepEqual([s.showThreshold, s.hideThreshold], [0.8, 0.1]);
   assert.equal(YFF.activeGoals({ goals: [{ id: "A", text: " " }, { id: "B", text: "x" }] }).length, 1);
   assert.equal(YFF.setupComplete(s), false, "no key, no goal");
   assert.equal(YFF.setupComplete({ ...s, jevKey: "k" }), false, "key but no goal");
   assert.equal(YFF.setupComplete({ ...s, goals: [YFF.EXAMPLE_GOALS[0]] }), false, "goal but no key");
   assert.equal(YFF.setupComplete({ ...s, jevKey: "k", goals: [YFF.EXAMPLE_GOALS[0]] }), true);
-  assert.equal(YFF.setupComplete({ ...s, scorer: "proxy", proxySecret: "x", goals: [YFF.EXAMPLE_GOALS[0]] }), true);
+  assert.equal(YFF.setupComplete({ ...s, proxySecret: "x", goals: [YFF.EXAMPLE_GOALS[0]] }), false, "a proxy secret is not a key");
   assert.equal(YFF.setupComplete({ ...s, jevKey: "k", goals: [{ ...YFF.EXAMPLE_GOALS[0], off: true }] }), false, "goal switched off");
-  pass("YFF.DEFAULT_SETTINGS / YFF.setupComplete: no preset goals or languages; ready only with a key (or proxy secret) and an active goal");
+  pass("YFF.DEFAULT_SETTINGS / YFF.setupComplete: no preset goals or languages; ready only with a key and an active goal");
 });
 
 test("migrateSettings moves only the old default hide threshold", () => {
@@ -171,7 +171,7 @@ test("band edges", () => {
   assert.equal(YFF.band(0.8, 0.8, 0.2), "uncertain");
   assert.equal(YFF.band(0.2, 0.8, 0.2), "uncertain");
   assert.equal(YFF.band(0.19, 0.8, 0.2), "hide");
-  pass("YFF.band: > show is show, < hide is hide, edges uncertain (same as proxy.judge.band)");
+  pass("YFF.band: > show is show, < hide is hide, edges uncertain");
 });
 
 test("detectLanguage basics", () => {
@@ -265,7 +265,7 @@ test("describe turns reason strings into plain words", () => {
   assert.equal(YFF.describe("rule:non-video:playlist").detail, "Playlist");
   assert.equal(YFF.describe("override:keep").label, "Kept");
   assert.equal(YFF.describe("show p=0.90 earlier", goals).goal, "An earlier goal");
-  assert.equal(YFF.describe("proxy error").label, "Couldn't check");
+  assert.equal(YFF.describe("filter offline: timeout").label, "Couldn't check");
   pass("YFF.describe: scored, too-short, rule, override and error reasons");
 });
 
@@ -292,7 +292,7 @@ test("insights states facts from the aggregate", () => {
 test("migrateSettings version 3 leaves goals as saved", () => {
   const v2 = { settingsVersion: 2, goals: [{ id: "G1", text: "mine" }, { id: "G4", name: "Mine", text: "x" }] };
   const s = YFF.migrateSettings(v2);
-  assert.equal(s.settingsVersion, 4);
+  assert.equal(s.settingsVersion, 5);
   assert.deepEqual(s.goals, v2.goals, "names and text untouched");
   pass("YFF.migrateSettings: v3 changes no saved goal");
 });
@@ -319,22 +319,48 @@ test("driftOn needs 20 scored, triggers at the threshold and holds until 5 point
   pass("YFF.driftOn: 20-card minimum, on at the threshold, off 5 points below, 0 disables; default 80");
 });
 
-test("formatVideo matches the proxy's format_video byte for byte", () => {
+test("formatVideo produces the evaluated request text byte for byte", () => {
   const cases = JSON.parse(readFileSync(path.join(here, "format_video_fixture.json"), "utf8"));
   for (const c of cases) assert.equal(YFF.formatVideo(c.video), c.text, c.video.videoId);
   assert.equal(YFF.formatVideo({ title: "t", channel: "c", durationSeconds: null, viewCount: 1250000, isShort: false }),
     "Title: t\nChannel: c\nDuration: unknown (video)\nViews: 1.2M", "exact tie rounds to even, as Python does");
-  pass(`YFF.formatVideo: identical to proxy.prompt.format_video on ${cases.length} fixture cases, including x.x5 ties`);
+  pass(`YFF.formatVideo: identical to the pinned text on ${cases.length} fixture cases, including x.x5 ties`);
 });
 
-test("migrateSettings version 4 keeps proxy users on the proxy", () => {
-  const proxyUser = YFF.migrateSettings({ settingsVersion: 3, proxySecret: "s", goals: [] });
-  assert.deepEqual([proxyUser.scorer, proxyUser.dailyCallLimit, proxyUser.settingsVersion], ["proxy", 15000, 4]);
-  const noSecret = YFF.migrateSettings({ settingsVersion: 3, goals: [] });
-  assert.deepEqual([noSecret.scorer, noSecret.dailyCallLimit], ["direct", 3000]);
+test("videoPayload holds exactly the fields that leave the browser", () => {
+  const meta = { videoId: "abcdefghijk", title: "T", channel: "C", durationSeconds: 90, viewCount: 5, isShort: 1, description: "d",
+    kind: "video", contentId: "x", source: "data", badges: ["LIVE"], lang: "en" };
+  assert.deepEqual(YFF.videoPayload(meta),
+    { videoId: "abcdefghijk", title: "T", channel: "C", durationSeconds: 90, viewCount: 5, isShort: true, description: "d" });
+  assert.deepEqual(YFF.videoPayload({ videoId: "abcdefghijk" }),
+    { videoId: "abcdefghijk", title: "", channel: "", durationSeconds: null, viewCount: null, isShort: false, description: "" });
+  pass("YFF.videoPayload: seven named fields and nothing else from the card; missing ones become empty or null");
+});
+
+test("goalsKey changes with a goal's id or text, and cardKey and tallyId name a card", () => {
+  const a = [{ id: "g1", text: "Cooking" }, { id: "g2", text: "Finance" }];
+  assert.equal(YFF.goalsKey(a), YFF.goalsKey([{ id: "g1", text: "Cooking", name: "renamed" }, { id: "g2", text: "Finance" }]), "only id and text count");
+  assert.notEqual(YFF.goalsKey(a), YFF.goalsKey([{ id: "g1", text: "Cooking." }, a[1]]), "edited text");
+  assert.notEqual(YFF.goalsKey(a), YFF.goalsKey([a[0]]), "goal turned off");
+  assert.equal(YFF.goalsKey([{ id: "g", text: "Learn Rust" }]), "1mtcfcq");
+  assert.equal(YFF.cardKey({ videoId: "abcdefghijk", contentId: "c", kind: "video", title: "t" }), "abcdefghijk");
+  assert.equal(YFF.cardKey({ videoId: null, contentId: "PL1", kind: "playlist" }), "PL1");
+  assert.equal(YFF.cardKey({ videoId: null, kind: "ad" }), "ad:");
+  assert.equal(YFF.tallyId({ videoId: null, kind: "ad", title: "x".repeat(200) }, "e1").length, 120);
+  assert.equal(YFF.tallyId({ videoId: null, kind: "ad" }, "e1"), "ad:e1");
+  assert.notEqual(YFF.tallyId({ videoId: null, kind: "ad" }, "e1"), YFF.tallyId({ videoId: null, kind: "ad" }, "e2"), "two untitled ads count as two");
+  pass("YFF.goalsKey, cardKey, tallyId: goal edits change the key; ads without a title are tallied per card element");
+});
+
+test("migrateSettings version 5 drops the proxy settings", () => {
+  const proxyUser = YFF.migrateSettings({ settingsVersion: 4, scorer: "proxy", proxyUrl: "http://127.0.0.1:8787", proxySecret: "s",
+    dailyCallLimit: 15000, goals: [YFF.EXAMPLE_GOALS[0]], blocklist: ["x"] });
+  assert.deepEqual(["scorer", "proxyUrl", "proxySecret"].filter((k) => k in proxyUser), []);
+  assert.deepEqual([proxyUser.settingsVersion, proxyUser.jevKey, proxyUser.goals.length, proxyUser.blocklist], [5, "", 1, ["x"]]);
+  assert.equal(YFF.setupComplete(proxyUser), false, "no key yet: not set up");
+  const direct = YFF.migrateSettings({ settingsVersion: 4, scorer: "direct", jevKey: "k", dailyCallLimit: 500, goals: [YFF.EXAMPLE_GOALS[0]] });
+  assert.deepEqual([direct.jevKey, direct.dailyCallLimit, YFF.setupComplete(direct)], ["k", 500, true]);
   const fresh = YFF.migrateSettings(undefined);
-  assert.deepEqual([fresh.scorer, fresh.jevKey, fresh.dailyCallLimit], ["direct", "", 3000]);
-  const chosen = YFF.migrateSettings({ settingsVersion: 4, proxySecret: "s", scorer: "direct" });
-  assert.equal(chosen.scorer, "direct", "a saved choice is kept");
-  pass("YFF.migrateSettings: v4 puts existing proxy users on the proxy at 15,000 calls; new installs default to direct at 3,000");
+  assert.deepEqual([fresh.jevKey, fresh.dailyCallLimit, fresh.settingsVersion], ["", 3000, 5]);
+  pass("YFF.migrateSettings: v5 drops scorer, proxyUrl and proxySecret; a former proxy profile keeps its goals and rules and is not set up until it has a key");
 });
