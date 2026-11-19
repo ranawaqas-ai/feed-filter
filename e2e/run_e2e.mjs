@@ -196,15 +196,15 @@ const uncertain = cards.filter((c) => c.state === "uncertain" && c.metaId && !c.
 const clicks = {};
 if (uncertain.length >= 2) {
   await mark(uncertain[0].metaId, "keep");
-  await page.hover("[data-e2e-target='keep'] h3"); // the title: over the thumbnail, YouTube's preview covers the card
-  await page.click("[data-e2e-target='keep'] > .yff-overlay .yff-more"); // Keep and Hide live in the card's menu
-  await page.click("[data-e2e-target='keep'] > .yff-overlay .yff-keep");
+  // A maybe card has Yes and No on its thumbnail; the pointer starts on the title because
+  // YouTube's preview covers the card once it is over the thumbnail.
+  await page.hover("[data-e2e-target='keep'] h3");
+  await page.click("[data-e2e-target='keep'] > .yff-overlay .yff-ask .yff-keep");
   await sleep(600);
   clicks.keep = { id: uncertain[0].metaId, after: await stateOf(uncertain[0].metaId), url: page.url() };
   await mark(uncertain[1].metaId, "hideclick");
-  await page.hover("[data-e2e-target='hideclick'] h3"); // the title: over the thumbnail, YouTube's preview covers the card
-  await page.click("[data-e2e-target='hideclick'] > .yff-overlay .yff-more"); // Keep and Hide live in the card's menu
-  await page.click("[data-e2e-target='hideclick'] > .yff-overlay .yff-hide");
+  await page.hover("[data-e2e-target='hideclick'] h3");
+  await page.click("[data-e2e-target='hideclick'] > .yff-overlay .yff-ask .yff-hide");
   await sleep(600);
   clicks.hide = { id: uncertain[1].metaId, after: await stateOf(uncertain[1].metaId), url: page.url() };
 }
@@ -251,8 +251,11 @@ if (shownCard) {
     for (const t of targets) {
       await mark(t.key, "hide");
       await page.hover("[data-e2e-target='hide'] h3"); // the title: over the thumbnail, YouTube's preview covers the card
-      await page.click("[data-e2e-target='hide'] > .yff-overlay .yff-more");
-      await page.click("[data-e2e-target='hide'] > .yff-overlay .yff-hide");
+      if (t.state === "uncertain") await page.click("[data-e2e-target='hide'] > .yff-overlay .yff-ask .yff-hide");
+      else {
+        await page.click("[data-e2e-target='hide'] > .yff-overlay .yff-more");
+        await page.click("[data-e2e-target='hide'] > .yff-overlay .yff-menu .yff-hide");
+      }
       await sleep(600);
       immediate[t.key] = await stateOf(t.key);
       await page.evaluate(() => document.querySelector("[data-e2e-target='hide']")?.removeAttribute("data-e2e-target"));
