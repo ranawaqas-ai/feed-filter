@@ -4,9 +4,10 @@ A Chrome extension that blurs YouTube home-feed and watch-sidebar cards until ea
 
 - Cards stay blurred until their verdict arrives, so nothing slips through unchecked.
 - Videos that clearly serve a goal get an **ON GOAL** badge and a blue ring. Clearly off-goal videos are filtered out. Anything in between is shown normally.
-- Every filtered card can be revealed with the reason, and any card can be kept or hidden by hand from its three-dot menu.
+- Every filtered card can be revealed with the reason, a maybe card asks "On goal?" on its thumbnail with Yes and No, and an on-goal card can be kept or hidden from its three-dot menu.
 - When most of what YouTube offers is rejected, a notice above the feed says so and offers a search for each of your goals.
 - A dashboard shows what was let through, by goal and over time.
+- What each version added is listed on the [releases page](https://feedfilter.waqasrana.space/releases.html).
 - Optional: with an Anthropic key, the dashboard also shows what YouTube is feeding you by topic, which topics no goal covers, and lets you turn one into a goal or an exclusion.
 
 Desktop Chrome only. Not affiliated with YouTube or Google.

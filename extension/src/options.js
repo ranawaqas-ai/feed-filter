@@ -300,7 +300,14 @@
   $("save").addEventListener("click", async () => {
     try {
       validate(draft);
-      await chrome.storage.local.set({ settings: draft });
+      const extra = {};
+      // The dashboard stops offering a topic once its goal is saved.
+      if (fromTopic && draft.goals.some((g) => g.id === fromTopic.goalId)) {
+        const { profileGoaled = [] } = await chrome.storage.local.get("profileGoaled");
+        extra.profileGoaled = [...new Set([...profileGoaled, fromTopic.name])].slice(-50);
+      }
+      await chrome.storage.local.set({ settings: draft, ...extra });
+      fromTopic = null;
       saved = clone(draft);
       changed();
       say("Saved");
@@ -332,11 +339,13 @@
   // "Make it a goal" on the dashboard opens this page with a goal to review. Nothing is saved
   // until Save is pressed.
   const offered = new URLSearchParams(location.hash.slice(1));
+  let fromTopic = null; // the dashboard topic behind the offered goal, recorded when it is saved
   if (offered.get("goalText")) {
     const used = new Set(draft.goals.map((g) => g.id));
     let n = draft.goals.length + 1;
     while (used.has(`G${n}`)) n += 1;
     draft.goals.push({ id: `G${n}`, name: (offered.get("goalName") || "New goal").slice(0, 60), text: offered.get("goalText").slice(0, 400), minDurationMinutes: 0 });
+    if (offered.get("goalName")) fromTopic = { name: offered.get("goalName"), goalId: `G${n}` };
     openGoal = draft.goals.length - 1;
     window.history.replaceState(null, "", location.pathname);
     renderGoals();

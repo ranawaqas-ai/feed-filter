@@ -48,7 +48,7 @@ html[data-yff-reveal]:not([data-yff-off]) [data-yff-state="hide"] > :not(.yff-ov
 }
 
 /* Filtering paused for this tab: no overlays or drift notice either. */
-html[data-yff-off] :is(.yff-overlay, #yff-drift, #yff-firstrun) { display: none !important; }
+html[data-yff-off] :is(.yff-overlay, #yff-drift, #yff-firstrun, #yff-hover) { display: none !important; }
 
 /* ---- per-card overlay ----------------------------------------------------------------
    Laid over the card; only its controls take clicks. Follows YouTube's light and dark theme. */
@@ -121,6 +121,25 @@ ytd-rich-shelf-renderer ytd-rich-item-renderer > .yff-overlay > .yff-thumb { asp
   background: transparent; color: inherit; white-space: nowrap;
 }
 .yff-overlay .yff-menu button:hover { background: var(--yff-hover); }
+/* Maybe cards: the question sits on the thumbnail at rest, because YouTube's hover preview
+   covers the card. Only the two buttons take clicks, so the rest of the bar still opens the video. */
+.yff-overlay .yff-ask {
+  display: none; position: absolute; left: 0; right: 0; top: 0; box-sizing: border-box; align-items: center; gap: 6px;
+  padding: 8px 8px 20px 10px; border-radius: 12px 12px 0 0; color: #FFFFFF; pointer-events: none;
+  background: linear-gradient(rgba(0, 0, 0, 0.78), rgba(0, 0, 0, 0));
+}
+.yff-overlay .yff-ask-text { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.yff-overlay .yff-ask button {
+  display: inline-flex; flex: none; align-items: center; gap: 4px; height: 28px; padding: 0 10px; border-radius: 14px;
+  background: rgba(0, 0, 0, 0.72); color: #FFFFFF; white-space: nowrap; pointer-events: auto;
+}
+.yff-overlay .yff-ask button:hover { background: #000000; }
+.yff-overlay .yff-ask .yff-keep { background: #FFFFFF; color: #0F0F0F; }
+.yff-overlay .yff-ask .yff-keep:hover { background: #D9D9D9; }
+.yff-overlay .yff-ask svg { fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+/* Sidebar thumbnails are too narrow for the question; the two buttons stay. */
+yt-lockup-view-model > .yff-overlay .yff-ask { justify-content: flex-end; padding: 6px 6px 16px; border-radius: 8px 8px 0 0; }
+yt-lockup-view-model > .yff-overlay .yff-ask-text { display: none; }
 .yff-overlay .yff-sep { height: 1px; margin: 8px 0; background: var(--yff-divider); }
 .yff-overlay .yff-match { padding: 4px 16px 8px; font-size: 12px; line-height: 16px; color: var(--yff-text-2); white-space: normal; }
 
@@ -147,10 +166,11 @@ yt-lockup-view-model > .yff-overlay > .yff-thumb > .yff-box { right: auto; width
 
 /* What shows in each state */
 [data-yff-state="show"] > .yff-overlay .yff-badge { display: block; }
+[data-yff-state="uncertain"] > .yff-overlay .yff-ask { display: flex; }
 :is([data-yff-state="pending"], :not([data-yff-state])) > .yff-overlay .yff-pill { display: block; }
 /* Hovering the thumbnail starts YouTube's preview, which sits above the card; the button
    shows while the pointer is anywhere on the card, including its title. */
-:is([data-yff-state="show"], [data-yff-state="uncertain"], [data-yff-state="revealed"]):is(:hover, :focus-within) > .yff-overlay .yff-more,
+:is([data-yff-state="show"], [data-yff-state="revealed"]):is(:hover, :focus-within) > .yff-overlay .yff-more,
 .yff-overlay.yff-open .yff-more { display: block; }
 .yff-overlay.yff-open .yff-menu { display: block; }
 [data-yff-state="error"] > .yff-overlay .yff-box,
@@ -159,6 +179,18 @@ html[data-yff-reveal] [data-yff-state="hide"] > .yff-overlay .yff-box,
 html[data-yff-reveal] [data-yff-state="hide"] > .yff-overlay .yff-filtered-only { display: flex; }
 /* On a filtered card, Why? opens the menu under the box; its Keep is the same as the box's. */
 [data-yff-state="hide"] > .yff-overlay.yff-open .yff-menu { top: auto; bottom: -8px; transform: translateY(100%); }
+
+/* Match chip shown while the pointer is on a card. Same type, padding and corner radius as
+   YouTube's duration badge (read from the page on 2026-11-17), in the opposite corner of the
+   thumbnail. It sits in the page because YouTube's hover preview covers the card. */
+#yff-hover {
+  position: absolute; z-index: 2000; transform: translateY(-100%); box-sizing: border-box;
+  padding: 1px 4px; border-radius: 4px; background: rgba(0, 0, 0, 0.6); color: #FFFFFF;
+  font: 500 12px/18px Roboto, Arial, sans-serif; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  pointer-events: none;
+}
+#yff-hover[hidden] { display: none; }
+#yff-hover[data-state="show"] { background: var(--yt-spec-call-to-action, #065FD4); }
 
 /* Snackbar for "can't reach the scorer" and "loading paused". */
 #yff-banner {

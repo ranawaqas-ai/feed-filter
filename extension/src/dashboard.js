@@ -165,24 +165,41 @@
       </div></div>`;
   }
 
+  // Long lists show their first few rows; a button under the list reveals the rest.
+  const LIST_LIMIT = 5;
+  function renderList(el, rows, emptyText) {
+    if (!rows.length) {
+      el.innerHTML = `<p class="muted">${emptyText}</p>`;
+      return;
+    }
+    const rest = rows.slice(LIST_LIMIT);
+    el.innerHTML = rows.slice(0, LIST_LIMIT).join("") + (rest.length
+      ? `<div class="more" hidden>${rest.join("")}</div><button class="pill text small morebtn" type="button" aria-expanded="false">Show ${rest.length} more</button>`
+      : "");
+    const btn = el.querySelector(".morebtn");
+    if (!btn) return;
+    btn.addEventListener("click", () => {
+      const more = el.querySelector(".more");
+      more.hidden = !more.hidden;
+      btn.setAttribute("aria-expanded", String(!more.hidden));
+      btn.textContent = more.hidden ? `Show ${rest.length} more` : "Show fewer";
+    });
+  }
+
   const OUTCOME = { uncertain: "Maybe, shown", hiddenScore: "Filtered, low match", hiddenDuration: "Filtered, too short", highlighted: "On goal" };
   function renderLists(a) {
     const goal = (id) => esc(Y.goalName(settings.goals, id));
-    $("nearMisses").innerHTML = a.nearMisses.length
-      ? a.nearMisses.map((r) => videoRow(r, pctP(r.p), `${goal(r.goalId)} · ${esc(OUTCOME[r.kind] || r.kind)}`)).join("")
-      : '<p class="muted">Nothing yet.</p>';
+    renderList($("nearMisses"), a.nearMisses.map((r) => videoRow(r, pctP(r.p), `${goal(r.goalId)} · ${esc(OUTCOME[r.kind] || r.kind)}`)), "Nothing yet.");
     $("onGoalTitle").textContent = a.since === a.today ? "On goal today" : "On goal";
     $("onGoalSub").textContent = a.highlighted.length
-      ? `All ${a.highlighted.length} video${a.highlighted.length === 1 ? "" : "s"} that cleared the highlight mark` : "Videos that clear the highlight mark show up here";
-    $("highlighted").innerHTML = a.highlighted.length
-      ? a.highlighted.map((r) => videoRow(r, fmtDur(r.durationSeconds), `<span class="match">${pctP(r.p)} match · ${goal(r.goalId)}</span>`)).join("")
-      : '<p class="muted">Nothing on goal in this range.</p>';
-    $("overrides").innerHTML = a.overrides.length
-      ? [...a.overrides].reverse().map((o) => `<div class="vrow" style="align-items:center">
+      ? `${a.highlighted.length} video${a.highlighted.length === 1 ? "" : "s"} cleared the highlight mark, best match first` : "Videos that clear the highlight mark show up here";
+    renderList($("highlighted"), a.highlighted.map((r) => videoRow(r, fmtDur(r.durationSeconds), `<span class="match">${pctP(r.p)} match · ${goal(r.goalId)}</span>`)),
+      "Nothing on goal in this range.");
+    renderList($("overrides"), [...a.overrides].reverse().map((o) => `<div class="vrow" style="align-items:center">
           <span class="badge ${o.action === "keep" ? "keep" : "hide"}">${o.action === "keep" ? "Kept" : "Hidden"}</span>
           <div style="flex:1;min-width:0"><a class="title" href="${watchUrl(o.videoId)}" target="_blank" rel="noopener" style="color:var(--text)">${esc(o.title || o.videoId)}</a>
-          <div class="meta">${goal(o.goalId)} · scored ${pctP(o.p)} · ${esc(new Date(o.ts * 1000).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }))}</div></div></div>`).join("")
-      : '<p class="muted">No corrections yet. Use Keep or Hide in a card\'s menu.</p>';
+          <div class="meta">${goal(o.goalId)} · scored ${pctP(o.p)} · ${esc(new Date(o.ts * 1000).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }))}</div></div></div>`),
+      "No corrections yet. Use Keep or Hide in a card's menu.");
   }
 
   function ruleLabel(k) {
@@ -205,6 +222,7 @@
   // Topics come from the weekly grouping in the service worker; the numbers are counted here
   // from the local log by YFF.feedProfile. It always covers this week, whatever range is chosen.
   const DISMISSED_KEY = "profileDismissed"; // topic names marked "Not for me"
+  const GOALED_KEY = "profileGoaled"; // topic names saved as a goal on the settings page
   const searchUrl = (q) => `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`;
   const goalQuery = (g) => g.name || Y.splitGoal(g.text || "").want.slice(0, 80) || g.id;
 
@@ -216,21 +234,27 @@
     return text;
   }
 
-  function topicRow(t, i, top, dismissed) {
+  function topicRow(t, i, top) {
     const goal = t.covered ? Y.activeGoals(settings).find((g) => g.id === t.goalId) : null;
-    const done = dismissed.includes(t.name);
     let acts = "";
-    if (done) acts = `<span class="small muted">Marked not for you</span>`;
-    else if (!t.covered) {
+    if (!t.covered) {
       const not = `<button class="pill${t.watched ? " text" : ""} small" type="button" data-act="not" data-i="${i}">Not for me</button>`;
       const make = `<button class="pill${t.watched ? "" : " text"} small" type="button" data-act="goal" data-i="${i}">Make it a goal</button>`;
       acts = t.watched ? make + not : not + make; // the likelier choice comes first
     } else if (t.fading && goal) acts = `<a class="pill text small" href="${esc(searchUrl(goalQuery(goal)))}" target="_blank" rel="noopener">Find more</a>`;
-    return `<div class="trow${done ? " done" : ""}"><div class="tpct">${t.share}%</div>
+    return `<div class="trow"><div class="tpct">${t.share}%</div>
       <div><div class="tname">${esc(t.name)}</div>
         <div class="tbar"><span style="width:${top ? Math.round((100 * t.share) / top) : 0}%;background:var(${t.covered ? "--ongoal" : "--filtered"})"></span></div>
         <div class="tnote">${esc(topicNote(t, goal))}</div></div>
       <div class="tact">${acts}</div></div>`;
+  }
+
+  // Topics already decided on are kept out of the list above and shown here on request.
+  function decidedList(dismissed, goaled) {
+    const rows = [...dismissed.map((n) => [n, "Not for you"]), ...goaled.map((n) => [n, "Made a goal"])];
+    if (!rows.length) return "";
+    return `<details class="pdone"><summary>Decided earlier (${rows.length})</summary>
+      ${rows.reverse().map(([n, what]) => `<div class="rrow"><span>${esc(n)}</span><span class="muted">${what}</span></div>`).join("")}</details>`;
   }
 
   async function loadProfile() {
@@ -256,18 +280,17 @@
     refresh.disabled = !!r.running;
     refresh.textContent = r.running ? "Grouping…" : "Refresh";
     const failed = r.error ? `<div class="pfoot" style="color:var(--bad)">The last update on ${esc(dayShort(r.error.day))} failed: ${esc(r.error.text)}.</div>` : "";
-    const profile = Y.feedProfile({ rows: r.rows, watched: r.watched, result: r.result, settings, today: r.today });
+    const { [DISMISSED_KEY]: dismissed = [], [GOALED_KEY]: goaled = [] } = await chrome.storage.local.get([DISMISSED_KEY, GOALED_KEY]);
+    const profile = Y.feedProfile({ rows: r.rows, watched: r.watched, result: r.result, settings, today: r.today, decided: [...dismissed, ...goaled] });
     window.__yffProfile = profile; // read by the e2e check
     if (!profile) {
       body.innerHTML = `<p class="muted" style="margin:16px 0 0">No topics yet. Press Refresh to group the last four weeks of your feed now; after that it updates once a week.</p>${failed}`;
       return;
     }
-    const { [DISMISSED_KEY]: saved } = await chrome.storage.local.get(DISMISSED_KEY);
-    const dismissed = saved || [];
     const top = Math.max(0, ...profile.topics.map((t) => t.share));
     body.innerHTML = `<div class="lead">${esc(profile.headline)}</div>
-      <div style="margin-top:12px">${profile.topics.map((t, i) => topicRow(t, i, top, dismissed)).join("") || '<p class="muted">Topics are listed once they have appeared on several days.</p>'}</div>
-      <div class="pfoot">Updated ${esc(dayShort(profile.day))} from ${num(r.result.sent)} videos.${profile.other ? ` The other ${profile.other}% of this week's feed is smaller topics and one-off videos.` : ""}</div>${failed}`;
+      <div style="margin-top:12px">${profile.topics.map((t, i) => topicRow(t, i, top)).join("") || (profile.decidedShare ? "" : '<p class="muted">Topics are listed once they have appeared on several days.</p>')}</div>
+      <div class="pfoot">Updated ${esc(dayShort(profile.day))} from ${num(r.result.sent)} videos.${profile.decidedShare ? ` Topics you already decided on are ${profile.decidedShare}% of this week's feed.` : ""}${profile.other ? ` The other ${profile.other}% is smaller topics and one-off videos.` : ""}</div>${decidedList(dismissed, goaled)}${failed}`;
     body.querySelectorAll("button[data-act]").forEach((b) => b.addEventListener("click", () => {
       const t = profile.topics[Number(b.dataset.i)];
       if (b.dataset.act === "goal") {

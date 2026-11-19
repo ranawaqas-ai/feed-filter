@@ -391,6 +391,13 @@ test("feedProfile counts share, change, coverage and watched videos per topic", 
     ["Gaming", 60, 50, false, null, 2, false], ["Home cooking", 20, -40, true, "g", 0, true]]);
   assert.equal(p.other, 20, "a topic seen on one day is not listed and counts as Other");
   assert.equal(p.headline, "60% of your feed this week is Gaming, and no goal covers it.");
+  // A decided topic leaves the list and the headline; its share is reported apart from Other.
+  const ruled = YFF.feedProfile({ rows, watched, result, settings, today, decided: ["Gaming", "Home cooking"] });
+  assert.deepEqual(ruled.topics.map((t) => t.name), ["Home cooking"], "a covered topic stays listed even if decided");
+  assert.deepEqual([ruled.decidedShare, ruled.other], [60, 20]);
+  assert.equal(ruled.headline, "Every main topic in your feed this week is covered by a goal.");
+  const gamesOnly = { ...result, topics: [result.topics[1]] };
+  assert.equal(YFF.feedProfile({ rows, watched, result: gamesOnly, settings, today, decided: ["Gaming"] }).headline, "You have decided on every main topic in this week's feed.");
   assert.equal(YFF.feedProfile({ rows, watched, result: { ...result, oldestDay: day(10) }, settings, today }).topics[0].change, null, "older week not sent in full");
   assert.equal(YFF.feedProfile({ rows, watched, result: null, settings, today }), null);
   // "Not for me" rewrites every goal's text; rows scored with the old text still count for the goal.

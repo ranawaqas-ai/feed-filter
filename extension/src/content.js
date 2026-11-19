@@ -45,7 +45,9 @@
   // ---- applying a state --------------------------------------------------------------
   // One overlay per card, laid over the thumbnail. What shows depends on data-yff-state
   // (blur.css): ON GOAL badge, Checking pill, a grey box for filtered (in reveal mode) and
-  // failed cards, and a three-dot menu with the match line, Keep and Hide.
+  // failed cards, and a three-dot menu with the match line, Keep and Hide. A maybe card has no
+  // three-dot menu: a bar across the top of its thumbnail asks "On goal?" with Yes and No, always
+  // visible, so a correction is one click.
   const OVERLAY_HTML =
     '<div class="yff-thumb">' +
       '<span class="yff-badge"></span>' +
@@ -56,6 +58,12 @@
         '<button class="yff-keep" type="button" role="menuitem">Keep, it\u2019s on goal</button>' +
         '<button class="yff-hide" type="button" role="menuitem">Hide, not for me</button>' +
         '<div class="yff-sep"></div><div class="yff-match"></div>' +
+      '</div>' +
+      '<div class="yff-ask"><span class="yff-ask-text"></span>' +
+        '<button class="yff-keep" type="button" aria-label="Keep, it\u2019s on goal">' +
+          '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Yes</button>' +
+        '<button class="yff-hide" type="button" aria-label="Hide, not for me">' +
+          '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>No</button>' +
       '</div>' +
       '<div class="yff-box">' +
         '<div class="yff-reason"></div><div class="yff-title"></div>' +
@@ -94,6 +102,7 @@
     else if (d.detail) match = `${d.label}: ${d.detail}.`;
     box.querySelector(".yff-match").textContent = match;
     box.querySelector(".yff-match").hidden = !match;
+    box.querySelector(".yff-ask-text").textContent = d.p != null ? `On goal? ${d.match}` : "On goal?";
     let title = "";
     if (state === "error") title = "Couldn\u2019t check this video";
     else if (d.label === "Too short") title = `Filtered \u00b7 ${d.detail}`;
@@ -101,6 +110,60 @@
     box.querySelector(".yff-reason").textContent = title;
     const meta = host.yffMeta;
     box.querySelector(".yff-title").textContent = meta && meta.title ? meta.title : "";
+  }
+
+  // ---- match chip on hover -----------------------------------------------------------
+  // YouTube's preview player covers the thumbnail within 200 ms of the pointer arriving and
+  // takes the pointer with it (measured 2026-11-17), so nothing inside the card stays visible.
+  // The chip is one element in the page, above the preview, styled like YouTube's duration
+  // badge and placed in the opposite corner. It holds while the pointer is inside the card's box.
+  const CHIP_STATES = new Set(["show", "uncertain", "revealed"]);
+  let hoverHost = null;
+
+  function hoverChip() {
+    let chip = document.getElementById("yff-hover");
+    if (!chip) {
+      chip = document.createElement("div");
+      chip.id = "yff-hover";
+      chip.hidden = true;
+      document.body.appendChild(chip);
+    }
+    return chip;
+  }
+
+  function hideHover() {
+    hoverHost = null;
+    const chip = document.getElementById("yff-hover");
+    if (chip) chip.hidden = true;
+  }
+
+  function showHover(host) {
+    const thumb = host.querySelector(":scope > .yff-overlay > .yff-thumb");
+    const d = Y.describe(host.dataset.yffReason, settings ? settings.goals : []);
+    if (!thumb || d.p == null || !CHIP_STATES.has(host.dataset.yffState)) return hideHover();
+    const r = thumb.getBoundingClientRect();
+    const chip = hoverChip();
+    // The watch-page sidebar's thumbnail is too narrow for the goal's name beside the duration.
+    chip.textContent = r.width >= 240 ? `${d.match} \u00b7 ${d.goal}` : d.match;
+    chip.dataset.state = host.dataset.yffState;
+    chip.style.left = `${r.left + window.scrollX + 8}px`;
+    chip.style.top = `${r.bottom + window.scrollY - 8}px`;
+    chip.style.maxWidth = `${Math.max(0, r.width - 80)}px`; // leaves the duration badge clear
+    chip.hidden = false;
+    hoverHost = host;
+  }
+
+  function onPointerOver(e) {
+    const host = e.target.closest ? e.target.closest(HOSTS) : null;
+    if (host) {
+      if (host !== hoverHost) showHover(host);
+      return;
+    }
+    if (hoverHost && hoverHost.isConnected) {
+      const r = hoverHost.getBoundingClientRect();
+      if (e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom) return; // on the preview
+    }
+    hideHover();
   }
 
   function closeMenus(except) {
@@ -117,6 +180,7 @@
     if (source) host.dataset.yffSource = source;
     if (FINAL.has(state) && !host.dataset.yffTApplied) host.dataset.yffTApplied = String(performance.now());
     ensureOverlay(host);
+    if (host === hoverHost) showHover(host);
     scheduleCounts();
     noteBatchProgress(host);
   }
@@ -731,6 +795,7 @@
 
   // ---- wiring -----------------------------------------------------------------------------
   function resetForNavigation() {
+    hideHover();
     noteWatchPage();
     pages.clear();
     consecutiveEmpty = 0;
@@ -819,6 +884,8 @@
     document.addEventListener("yt-navigate-finish", resetForNavigation);
     document.addEventListener("click", (e) => { if (!e.target.closest || !e.target.closest(".yff-overlay")) closeMenus(); }, true);
     document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeMenus(); });
+    document.addEventListener("mouseover", onPointerOver, true);
+    document.documentElement.addEventListener("mouseleave", hideHover);
     setInterval(scanSoon, 500); // catches DOM-fallback timeouts and quiet re-renders
     scanSoon();
     scheduleCounts(); // the first-run panel must appear even when the feed never loads a card

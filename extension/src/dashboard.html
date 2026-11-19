@@ -25,6 +25,8 @@
   .bigsplit { display: flex; gap: 2px; height: 12px; border-radius: 6px; overflow: hidden; }
   .bigsplit span { display: block; }
   .two { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 400px), 1fr)); gap: 16px; }
+  .two.lists { align-items: start; }
+  .morebtn { margin: 8px 0 -8px -12px; }
   .ins { display: flex; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--divider); }
   .ins:last-child { border-bottom: 0; }
   .hours { display: flex; align-items: flex-end; gap: 3px; height: 150px; margin-top: 20px; border-bottom: 1px solid var(--text-3); }
@@ -67,7 +69,8 @@
   .trow .tbar span { display: block; height: 100%; border-radius: 3px; }
   .trow .tnote { font-size: 13px; color: var(--text-2); }
   .trow .tact { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
-  .trow.done { opacity: 0.6; }
+  .pdone { font-size: 13px; margin-top: 12px; }
+  .pdone summary { cursor: pointer; color: var(--text-2); }
   .pfoot { font-size: 12px; color: var(--text-2); margin-top: 8px; padding-top: 12px; border-top: 1px solid var(--divider); }
   @media (max-width: 860px) { .guide { display: none; } .content { padding: 16px; } }
 </style>
@@ -158,7 +161,7 @@
         <div id="timeEmptyText"></div>
       </section>
 
-      <div class="two">
+      <div class="two lists">
         <section class="dcard">
           <h2 class="h2">Near misses</h2>
           <p class="sub">Highest scores that stayed below the highlight mark</p>
@@ -171,7 +174,7 @@
         </section>
       </div>
 
-      <div class="two">
+      <div class="two lists">
         <section class="dcard">
           <h2 class="h2">Your corrections</h2>
           <p class="sub">Times you overruled the filter with Keep or Hide</p>

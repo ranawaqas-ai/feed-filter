@@ -631,7 +631,7 @@
 
   // The card's data. rows: log rows of the last 28 days; watched: [{day, videoId}];
   // result: {day, oldestDay, topics: [{name, sentence, videoIds}]} from the last run, or null.
-  function feedProfile({ rows, watched, result, settings, today }) {
+  function feedProfile({ rows, watched, result, settings, today, decided = [] }) {
     if (!result || !result.topics || !result.topics.length) return null;
     const goals = activeGoals(settings);
     // Log rows are keyed by the goal text they were scored with. Adding a "But not" tag changes
@@ -671,7 +671,7 @@
     const share = (n, total) => (total ? (100 * n) / total : 0);
     // A topic seen on few days is YouTube exploring. A log younger than that asks for every day it has.
     const minDays = Math.min(PROFILE.minDays, logDays.size);
-    const topics = result.topics.map((t, i) => {
+    const main = result.topics.map((t, i) => {
       const s = stats[i];
       const seen = [...s.videos.values()];
       const visible = seen.filter((v) => v.visible);
@@ -688,15 +688,19 @@
         change: change !== null && Math.abs(change) >= PROFILE.move ? change : null,
         watched: s.watched.size, covered, goalId,
         fading: covered && change !== null && change <= -PROFILE.move };
-    }).filter((t) => t.videos > 0 && t.days >= minDays)
-      .sort((a, b) => b.share - a.share).slice(0, PROFILE.maxTopics);
+    }).filter((t) => t.videos > 0 && t.days >= minDays).sort((a, b) => b.share - a.share);
+    // A topic already marked "Not for me" or made a goal leaves the list while no goal covers
+    // it, so the next undecided topic takes its place. Once covered it is listed like any other.
+    const isDecided = (t) => !t.covered && decided.includes(t.name);
+    const decidedShare = main.filter(isDecided).reduce((n, t) => n + t.share, 0);
+    const topics = main.filter((t) => !isDecided(t)).slice(0, PROFILE.maxTopics);
     const top = topics.find((t) => !t.covered);
     const headline = !weekAll.size ? "Nothing was scored this week yet."
-      : !topics.length ? "No topic stands out in this week's feed yet."
+      : !topics.length ? (decidedShare ? "You have decided on every main topic in this week's feed." : "No topic stands out in this week's feed yet.")
       : top ? `${top.share}% of your feed this week is ${top.name}, and no goal covers it.`
       : "Every main topic in your feed this week is covered by a goal.";
-    return { day: result.day, weekVideos: weekAll.size, headline, topics,
-      other: Math.max(0, 100 - topics.reduce((n, t) => n + t.share, 0)) };
+    return { day: result.day, weekVideos: weekAll.size, headline, topics, decidedShare,
+      other: Math.max(0, 100 - decidedShare - topics.reduce((n, t) => n + t.share, 0)) };
   }
 
   // "Not for me": the topic joins the "But not" tags of every goal that is on. Commas would
