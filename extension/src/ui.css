@@ -20,6 +20,9 @@
   --maybe: #AAAAAA;
   --filtered: #E07B39;
   --tooshort: #F2B880;
+  --byrule: #A65A2A;
+  --bait: #8A3B0C;
+  --bait-bg: #FDEBDD;
   --notjudged: #D9D9D9;
   --ok: #2BA640;
   --bad: #CC0000;
@@ -46,6 +49,8 @@
     --ongoal: #3EA6FF;
     --maybe: #717171;
     --notjudged: #3F3F3F;
+    --bait: #FFB98A;
+    --bait-bg: #4A2A17;
     --shadow: 0 4px 32px rgba(0, 0, 0, 0.5);
   }
 }
@@ -121,6 +126,7 @@ button.chip:hover { background: var(--surface-hover); }
 .sw-maybe { background: var(--maybe); }
 .sw-filtered { background: var(--filtered); }
 .sw-tooshort { background: var(--tooshort); }
+.sw-byrule { background: var(--byrule); }
 .sw-notjudged { background: var(--notjudged); }
 
 /* Thin split bar */

@@ -37,6 +37,7 @@
   .ggrid { display: grid; grid-template-columns: 170px 70px 1fr 90px 100px; gap: 16px; align-items: center; padding: 14px 0; border-bottom: 1px solid var(--divider); }
   .ggrid.hd { padding: 0 0 8px; font-size: 12px; font-weight: 500; color: var(--text-2); }
   .ggrid .n { text-align: right; font-variant-numeric: tabular-nums; }
+  .kindgrid .ggrid { grid-template-columns: 110px 60px 1fr 90px; min-width: 380px; }
   .gbar { display: flex; gap: 2px; height: 8px; border-radius: 4px; overflow: hidden; background: var(--divider); }
   .gbar span { display: block; }
   .chart { position: relative; width: 100%; overflow-x: auto; margin-top: 16px; }
@@ -143,10 +144,24 @@
           <div class="legend">
             <span><span class="dot sw-ongoal"></span>On goal</span><span><span class="dot sw-maybe"></span>Maybe</span>
             <span><span class="dot sw-filtered"></span>Low match</span><span><span class="dot sw-tooshort"></span>Too short</span>
+            <span><span class="dot sw-byrule"></span>Kind or clickbait</span>
           </div>
         </div>
         <div style="margin-top:16px;overflow-x:auto"><div style="min-width:620px" id="goals"></div></div>
       </section>
+
+      <div class="two lists">
+        <section class="dcard">
+          <h2 class="h2">By kind</h2>
+          <p class="sub">What kinds of video YouTube offered, and how they fit your goals. Colours as in By goal.</p>
+          <div style="margin-top:16px;overflow-x:auto"><div class="kindgrid" id="kinds"></div></div>
+        </section>
+        <section class="dcard">
+          <h2 class="h2">Clickbait titles</h2>
+          <p class="sub">Titles labelled, out of those checked</p>
+          <div id="bait"></div>
+        </section>
+      </div>
 
       <section class="dcard" id="timeCard">
         <div style="display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px">
@@ -184,6 +199,7 @@
           <h2 class="h2">Blocked by rule</h2>
           <p class="sub">Shorts, other languages, playlists and ads, removed without scoring</p>
           <div style="margin-top:12px" id="rules"></div>
+          <div id="aboutRules"></div>
         </section>
       </div>
       <p class="small muted" id="basis"></p>

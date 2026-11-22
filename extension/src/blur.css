@@ -48,12 +48,12 @@ html[data-yff-reveal]:not([data-yff-off]) [data-yff-state="hide"] > :not(.yff-ov
 }
 
 /* Filtering paused for this tab: no overlays or drift notice either. */
-html[data-yff-off] :is(.yff-overlay, #yff-drift, #yff-firstrun, #yff-hover) { display: none !important; }
+html[data-yff-off] :is(.yff-overlay, .yff-tags, #yff-kinds, #yff-drift, #yff-firstrun, #yff-hover) { display: none !important; }
 
 /* ---- per-card overlay ----------------------------------------------------------------
    Laid over the card; only its controls take clicks. Follows YouTube's light and dark theme. */
 [data-yff-state] { position: relative; }
-.yff-overlay, #yff-drift, #yff-firstrun {
+.yff-overlay, #yff-kinds, #yff-drift, #yff-firstrun {
   /* YouTube marks its dark theme with html[dark]. */
   --yff-text: #0F0F0F;
   --yff-text-2: #606060;
@@ -63,7 +63,7 @@ html[data-yff-off] :is(.yff-overlay, #yff-drift, #yff-firstrun, #yff-hover) { di
   --yff-divider: #E5E5E5;
   --yff-blue: #065FD4;
 }
-html[dark] .yff-overlay, html[dark] #yff-drift, html[dark] #yff-firstrun {
+html[dark] :is(.yff-overlay, #yff-kinds, #yff-drift, #yff-firstrun) {
   --yff-text: #F1F1F1;
   --yff-text-2: #AAAAAA;
   --yff-box: #272727;
@@ -191,6 +191,42 @@ html[data-yff-reveal] [data-yff-state="hide"] > .yff-overlay .yff-filtered-only 
 }
 #yff-hover[hidden] { display: none; }
 #yff-hover[data-state="show"] { background: var(--yt-spec-call-to-action, #065FD4); }
+
+/* Kind and clickbait badges on the thumbnail. Type, padding, radius and colour are those of
+   YouTube's duration badge, read from the page on 2026-11-23, as are the insets (8px on the home
+   grid, 4px in the sidebar). Like that badge they leave while the pointer is on the card: the
+   match chip takes the corner, above YouTube's preview. */
+.yff-tags { display: none; position: absolute; left: 8px; bottom: 8px; gap: 4px; pointer-events: none; }
+ytd-watch-next-secondary-results-renderer .yff-tags { left: 4px; bottom: 4px; }
+:is([data-yff-state="show"], [data-yff-state="uncertain"], [data-yff-state="revealed"]):not(:hover) .yff-tags { display: flex; }
+.yff-tags .yff-tag {
+  display: flex; align-items: center; gap: 3px; padding: 1px 4px; border-radius: 4px; background: rgba(0, 0, 0, 0.6);
+  color: #FFFFFF; font: 500 12px/18px Roboto, Arial, sans-serif; white-space: nowrap;
+}
+.yff-tags svg { fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+/* A labelled maybe card gets the menu too, under its question bar, for "Not clickbait". */
+[data-yff-state="uncertain"][data-yff-clickbait="1"]:is(:hover, :focus-within) > .yff-overlay .yff-more { display: block; top: 44px; }
+[data-yff-state="uncertain"] > .yff-overlay.yff-open .yff-more { top: 44px; }
+[data-yff-state="uncertain"] > .yff-overlay.yff-open .yff-menu { top: 80px; }
+.yff-overlay .yff-menu .yff-notbait[hidden] { display: none; }
+
+/* Kinds bar above the home grid, in the style of YouTube's own chips. */
+#yff-kinds {
+  /* The grid's own padding plus half an item margin, so the chips start where the cards do. */
+  --yff-inset: calc(var(--ytd-rich-grid-item-margin, 16px) / 2 + 16px);
+  display: flex; flex-wrap: wrap; gap: 8px; box-sizing: border-box;
+  width: calc(100% - 2 * var(--yff-inset)); margin: 8px var(--yff-inset) 24px;
+}
+#yff-kinds button {
+  height: 32px; padding: 0 12px; border: 0; border-radius: 8px; cursor: pointer;
+  background: var(--yff-box); color: var(--yff-text); font: 500 14px/32px Roboto, Arial, sans-serif;
+}
+#yff-kinds button:hover { background: var(--yff-hover); }
+#yff-kinds button[aria-pressed="true"] { background: var(--yff-text); color: var(--yff-menu); }
+html[data-yff-kind-pick]:not([data-yff-off]) ytd-rich-item-renderer[data-yff-offkind],
+html[data-yff-kind-pick]:not([data-yff-off]) ytd-rich-grid-renderer :is(ytd-rich-section-renderer, ytd-continuation-item-renderer) {
+  display: none !important;
+}
 
 /* Snackbar for "can't reach the scorer" and "loading paused". */
 #yff-banner {

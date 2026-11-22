@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Feed Filter for YouTube",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Blurs YouTube feed cards until each is judged against your goal; hides what does not serve it.",
   "minimum_chrome_version": "120",
   "permissions": [

@@ -22,7 +22,7 @@ function judgeFor(s) {
   if (!directJudge || directKey !== key) {
     const jev = new self.YFFDirect.JevClient({ apiKey: s.jevKey, fetch: self.fetch.bind(self) });
     directJudge = new self.YFFDirect.DirectJudge({ jev, store: localStore, formatVideo: self.YFF.formatVideo,
-      localDay: self.YFF.localDay, dailyCap: s.dailyCallLimit });
+      formatLength: self.YFF.formatDurationText, kinds: self.YFF.KINDS, localDay: self.YFF.localDay, dailyCap: s.dailyCallLimit });
     directKey = key;
   }
   return directJudge;

@@ -13,6 +13,7 @@
     { key: "uncertain", label: "Maybe", cls: "sw-maybe", color: "var(--maybe)" },
     { key: "hiddenScore", label: "Low match", cls: "sw-filtered", color: "var(--filtered)" },
     { key: "hiddenDuration", label: "Too short", cls: "sw-tooshort", color: "var(--tooshort)" },
+    { key: "hiddenAbout", label: "Kind or clickbait", cls: "sw-byrule", color: "var(--byrule)" },
     { key: "notJudged", label: "Not checked", cls: "sw-notjudged", color: "var(--notjudged)" },
   ];
   const RANGE_KEY = "yff-dashboard-days";
@@ -40,7 +41,7 @@
   function renderHeadline(a) {
     const t = a.totals;
     const through = t.highlighted + t.uncertain;
-    const filtered = t.hiddenScore + t.hiddenDuration;
+    const filtered = t.hiddenScore + t.hiddenDuration + t.hiddenAbout;
     $("dateLine").textContent = a.since === a.today ? dayLong(a.today) : `${dayShort(a.since)} to ${dayLong(a.today)}`;
     $("headline").textContent = `${num(through)} of ${num(t.offered)} videos got through`;
     $("headSub").textContent = t.offered
@@ -76,16 +77,35 @@
     $("hours").setAttribute("aria-label", note || "No videos");
   }
 
+  // The outcomes a scored video can have; "Not checked" videos have no goal and no kind.
+  const SCORED_SERIES = SERIES.filter((s) => s.key !== "notJudged");
+  const breakdown = (name, c) => `<div class="gbar" role="img" aria-label="${esc(`${name}: ${c.offered} offered, ` + SCORED_SERIES.map((s) => `${c[s.key]} ${s.label.toLowerCase()}`).join(", "))}">${SCORED_SERIES.map((s) => seg(c[s.key], s.cls)).join("")}</div>`;
+
   function renderGoals(a) {
     const head = '<div class="ggrid hd"><span>Goal</span><span class="n">Offered</span><span>Breakdown</span><span class="n">Got through</span><span class="n">Typical match</span></div>';
     $("goals").innerHTML = head + a.byGoal.map((g) => {
       const name = Y.goalName(settings.goals, g.goalId);
-      const bar = SERIES.slice(0, 4).map((s) => seg(g[s.key], s.cls)).join("");
-      const aria = `${name}: ${g.offered} offered, ` + SERIES.slice(0, 4).map((s) => `${g[s.key]} ${s.label.toLowerCase()}`).join(", ");
       return `<div class="ggrid"><span style="font-weight:500">${esc(name)}</span><span class="n">${num(g.offered)}</span>` +
-        `<div class="gbar" role="img" aria-label="${esc(aria)}">${bar}</div>` +
+        breakdown(name, g) +
         `<span class="n">${g.offered ? pct(g.highlighted + g.uncertain, g.offered) : "-"}</span><span class="n muted">${pctP(g.medianP)}</span></div>`;
     }).join("");
+  }
+
+  function renderKinds(a) {
+    $("kinds").innerHTML = a.byKind.length
+      ? '<div class="ggrid hd"><span>Kind</span><span class="n">Offered</span><span>Breakdown</span><span class="n">Got through</span></div>' +
+        a.byKind.map((k) => `<div class="ggrid"><span style="font-weight:500">${esc(k.kind)}</span><span class="n">${num(k.offered)}</span>` +
+          breakdown(k.kind, k) + `<span class="n">${pct(k.highlighted + k.uncertain, k.offered)}</span></div>`).join("")
+      : '<p class="muted">Kinds appear once videos have been checked with this version.</p>';
+  }
+
+  function renderBait(a) {
+    const { onGoal, maybe, corrected } = a.clickbait;
+    const line = (name, c) => `<div style="display:flex;justify-content:space-between;margin-top:20px"><span style="font-weight:500">${name}</span><span>${num(c.labelled)} of ${num(c.checked)}</span></div>
+      <div class="gbar" style="margin-top:6px"><span class="sw-filtered" style="width:${c.checked ? (100 * c.labelled) / c.checked : 0}%"></span></div>`;
+    $("bait").innerHTML = settings.clickbait === "off" ? '<p class="muted">Clickbait labels are off in Settings.</p>'
+      : line("On goal", onGoal) + line("Maybe", maybe) +
+        `<div class="rrow" style="margin-top:20px;border-top:1px solid var(--divider)"><span>Marked \u201cNot clickbait\u201d by you</span><span>${num(corrected)}</span></div>`;
   }
 
   function table(cols, rows) {
@@ -186,7 +206,7 @@
     });
   }
 
-  const OUTCOME = { uncertain: "Maybe, shown", hiddenScore: "Filtered, low match", hiddenDuration: "Filtered, too short", highlighted: "On goal" };
+  const OUTCOME = { uncertain: "Maybe, shown", hiddenScore: "Filtered, low match", hiddenDuration: "Filtered, too short", hiddenAbout: "Filtered, kind or clickbait", highlighted: "On goal" };
   function renderLists(a) {
     const goal = (id) => esc(Y.goalName(settings.goals, id));
     renderList($("nearMisses"), a.nearMisses.map((r) => videoRow(r, pctP(r.p), `${goal(r.goalId)} · ${esc(OUTCOME[r.kind] || r.kind)}`)), "Nothing yet.");
@@ -208,6 +228,9 @@
   }
 
   function renderRules(a) {
+    const about = Object.entries(a.aboutBlocks).sort((x, y) => y[1] - x[1])
+      .map(([label, n]) => `<div class="rrow"><span>${esc(label)}</span><span>${num(n)}</span></div>`).join("");
+    $("aboutRules").innerHTML = about ? `<p class="sub" style="margin-top:16px">After scoring, by kind or clickbait title</p>${about}` : "";
     const rows = Object.entries(a.rules.byReason).sort((x, y) => y[1] - x[1]);
     if (!a.rules.since || !rows.length) {
       $("rules").innerHTML = `<div class="empty"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
@@ -341,6 +364,8 @@
     renderInsights(a);
     renderHours(a);
     renderGoals(a);
+    renderKinds(a);
+    renderBait(a);
     renderTime(a);
     renderLists(a);
     renderRules(a);

@@ -73,6 +73,7 @@
     <div class="hr" style="margin:12px 0"></div>
     <a class="sub" href="#goalsSec">Your goals</a>
     <a class="sub" href="#rulesSec">Always filter</a>
+    <a class="sub" href="#baitSec">Clickbait titles</a>
     <a class="sub" href="#sensSec">Sensitivity</a>
     <a class="sub" href="#connSec">Connection</a>
     <a class="sub" href="#topicsSec">Feed topics</a>
@@ -122,6 +123,23 @@
       </div>
     </section>
 
+    <section id="baitSec" class="sec">
+      <h2 class="sh">Clickbait titles</h2>
+      <p class="sd">Jev reads each title and says how likely it is to be clickbait. The same call finds the kind of video, so this setting does not change how many calls are made.</p>
+      <div class="row">
+        <span class="rl">When a title is clickbait</span>
+        <div class="rc">
+          <div class="chips" role="group" aria-label="When a title is clickbait" id="baitModes">
+            <button class="chip" type="button" data-mode="off">Off</button>
+            <button class="chip" type="button" data-mode="label">Label</button>
+            <button class="chip" type="button" data-mode="hide">Hide maybes</button>
+          </div>
+          <div class="hint" id="baitHint"></div>
+          <div class="hint">English titles only. Other languages are not tested yet, so those titles are never labelled.</div>
+        </div>
+      </div>
+    </section>
+
     <section id="sensSec" class="sec">
       <h2 class="sh">Sensitivity</h2>
       <p class="sd">Every video gets a match score from 0 to 100%. Two marks decide what happens to it.</p>
@@ -158,7 +176,7 @@
 
     <section id="connSec" class="sec">
       <h2 class="sh">Connection</h2>
-      <p class="sd">This browser sends each video's title, channel, length and view count with your goal to Jev (api.typesafe.ai), using your key.</p>
+      <p class="sd">This browser sends each video's title, channel, length and view count with your goal to Jev (api.typesafe.ai), using your key. A second request per video sends its title, channel and length to find its kind and whether the title is clickbait.</p>
       <div class="row" style="align-items:center">
         <span class="rl">Status</span>
         <div class="rc" style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
@@ -177,7 +195,7 @@
         <label class="rl" for="dailyCallLimit">Daily call limit</label>
         <div class="rc">
           <input id="dailyCallLimit" class="input" type="number" min="1" step="1" style="max-width:160px">
-          <div class="hint">One call per video per goal. TypeSafe has no per-key spending limit, so this is the only guard. <span id="callsToday"></span></div>
+          <div class="hint">One call per video per goal, plus one per video for its kind and title. TypeSafe has no per-key spending limit, so this is the only guard. <span id="callsToday"></span></div>
         </div>
       </div>
     </section>

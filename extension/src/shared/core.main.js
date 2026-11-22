@@ -314,6 +314,12 @@
       const p = Number(dur[3]);
       return { label: "Too short", p, match: `${pct(p)} match`, goal: goalName(goals, dur[1]), detail: `under ${dur[2]} min` };
     }
+    const about = /^rule:(?:kind:(\S+):(\S+)|clickbait:(\S+)) p=([\d.]+)$/.exec(r);
+    if (about) {
+      const p = Number(about[4]);
+      const goal = goalName(goals, about[1] || about[3]);
+      return { label: "Filtered", p, match: `${pct(p)} match`, goal, byRule: true, detail: about[2] ? `${about[2]}, off for ${goal}` : "Clickbait title" };
+    }
     if (r === "rule:shorts") return { label: "Filtered", detail: "Short" };
     const lang = /^rule:language:(.+)$/.exec(r);
     if (lang) return { label: "Filtered", detail: languageName(lang[1]) };
@@ -354,15 +360,57 @@
     return out;
   }
 
+  // ---- what Jev says about the video itself: its kind and whether the title is clickbait --------
+  // The keys and descriptions are the Choice criteria sent to Jev, as measured on 2026-11-23.
+  const KINDS = {
+    Tutorial: "Shows how to do or make something, step by step, so the viewer can do it too",
+    Lecture: "Explains a subject in depth: a course, talk, lecture or documentary",
+    News: "Reports or recaps recent events, releases or announcements",
+    Opinion: "Argues a view, rants, predicts or gives advice without teaching a skill",
+    Review: "Tests, compares or ranks products, tools or places",
+    Entertainment: "Made to amuse: challenges, comedy, gaming, music, stunts, vlogs",
+    Other: "None of the other kinds fits",
+  };
+  const KIND_LIST = Object.keys(KINDS).filter((k) => k !== "Other");
+  const NOT_SURE = "Not sure";
+  const KIND_SURE = 0.7; // below this the video has no kind
+  const CLICKBAIT_AT = 0.9;
+
+  // about: {clickbait, kind, kindP}, or null when Jev was not asked or the call failed.
+  function kindOf(about) {
+    return about && about.kindP >= KIND_SURE && KIND_LIST.includes(about.kind) ? about.kind : null;
+  }
+
+  // Measured on English titles only, so a title confidently in another language is never labelled.
+  function isClickbait(about, title, settings) {
+    if (!about || settings.clickbait === "off" || !(about.clickbait >= CLICKBAIT_AT)) return false;
+    const { lang } = detectLanguage(title);
+    return !lang || lang === "en";
+  }
+
+  // "Not clickbait" is stored beside the Keep and Hide choices, which use v:<videoId>.
+  const notClickbaitKey = (videoId) => `c:${videoId}`;
+  function withoutClickbait(rows, overrides) {
+    return rows.map((r) => (r.about && (overrides || {})[notClickbaitKey(r.videoId)] ? { ...r, about: { ...r.about, clickbait: 0 } } : r));
+  }
+
   // After scoring: band the best p, then apply the minimum duration of the goal that produced
-  // it. A video shorter than that goal's minimum is hidden; unknown duration passes.
-  function decideScored(item, settings, p, goalId) {
+  // it. A video shorter than that goal's minimum is hidden; unknown duration passes. Then the
+  // kinds that goal has turned off, then clickbait maybes when the setting filters them.
+  function decideScored(item, settings, p, goalId, about) {
     const state = band(p, settings.showThreshold, settings.hideThreshold);
     const reason = `${state} p=${p.toFixed(2)} ${goalId}`;
     const goal = (settings.goals || []).find((g) => g.id === goalId);
     const minMinutes = goal && Number(goal.minDurationMinutes) > 0 ? Number(goal.minDurationMinutes) : 0;
     if (state !== "hide" && minMinutes && item.durationSeconds != null && item.durationSeconds < minMinutes * 60) {
       return { state: "hide", reason: `rule:min-duration:${goalId}:${minMinutes}m p=${p.toFixed(2)}` };
+    }
+    const kind = kindOf(about);
+    if (state !== "hide" && kind && goal && (goal.kindsOff || []).includes(kind)) {
+      return { state: "hide", reason: `rule:kind:${goalId}:${kind} p=${p.toFixed(2)}` };
+    }
+    if (state === "uncertain" && settings.clickbait === "hide" && isClickbait(about, item.title, settings)) {
+      return { state: "hide", reason: `rule:clickbait:${goalId} p=${p.toFixed(2)}` };
     }
     return { state, reason };
   }
@@ -490,9 +538,9 @@
     // never scored that day is not judged here either, whatever the other goals said.
     const partial = (r.goalTexts || []).some((t) => !(t in r.pByGoalText));
     if (partial || !best) return { best: null, kind: "notJudged", reason: "not judged" };
-    const d = decideScored(r, settings, best.p, best.goalId);
+    const d = decideScored(r, settings, best.p, best.goalId, r.about);
     const kind = d.state === "show" ? "highlighted" : d.state === "uncertain" ? "uncertain"
-      : d.reason.startsWith("rule:min-duration") ? "hiddenDuration" : "hiddenScore";
+      : d.reason.startsWith("rule:min-duration") ? "hiddenDuration" : d.reason.startsWith("rule:") ? "hiddenAbout" : "hiddenScore";
     return { best, kind, reason: d.reason };
   }
 
@@ -502,7 +550,10 @@
   function aggregate(stats, tally, settings) {
     const goals = activeGoals(settings);
     const idByText = new Map(goals.map((g) => [g.text, g.id]));
-    const empty = () => ({ offered: 0, highlighted: 0, uncertain: 0, hiddenScore: 0, hiddenDuration: 0, notJudged: 0 });
+    const empty = () => ({ offered: 0, highlighted: 0, uncertain: 0, hiddenScore: 0, hiddenDuration: 0, hiddenAbout: 0, notJudged: 0 });
+    const byKind = new Map();
+    const aboutBlocks = {}; // plain words -> videos hidden by a goal's kinds or as clickbait
+    const bait = { onGoal: { labelled: 0, checked: 0 }, maybe: { labelled: 0, checked: 0 } };
     const days = new Map();
     const hours = new Map();
     const byGoal = new Map();
@@ -528,6 +579,21 @@
         const gd = byGoalDay.get(dk);
         gd.offered += 1;
         if (kind === "highlighted" || kind === "uncertain") gd.visible += 1;
+      }
+      if (best && r.about) {
+        const name = kindOf(r.about) || NOT_SURE;
+        if (!byKind.has(name)) byKind.set(name, empty());
+        byKind.get(name).offered += 1;
+        byKind.get(name)[kind] += 1;
+      }
+      if (kind === "hiddenAbout") {
+        const { detail } = describe(reason, goals);
+        aboutBlocks[detail] = (aboutBlocks[detail] || 0) + 1;
+      }
+      const side = kind === "highlighted" ? bait.onGoal : kind === "uncertain" || reason.startsWith("rule:clickbait:") ? bait.maybe : null;
+      if (side && r.about && settings.clickbait !== "off") {
+        side.checked += 1;
+        if (isClickbait(r.about, r.title, settings)) side.labelled += 1;
       }
       decided.push({ ...r, p: best ? best.p : null, goalId: best ? best.goalId : null, kind, reason });
     }
@@ -570,10 +636,13 @@
         return { goalId: id, ...counts, medianP: median(ps), maxP: ps.length ? Math.max(...ps) : null };
       }),
       byGoalDay: [...byGoalDay.values()].sort((a, b) => (a.day < b.day ? -1 : a.day > b.day ? 1 : 0)),
+      byKind: [...KIND_LIST, NOT_SURE].filter((k) => byKind.has(k)).map((k) => ({ kind: k, ...byKind.get(k) })),
+      aboutBlocks,
+      clickbait: { ...bait, corrected: (stats.feedback || []).filter((f) => f.action === "notClickbait").length },
       rules,
       nearMisses: ranked.filter((d) => d.kind !== "highlighted").slice(0, 20).map(pick),
       highlighted: ranked.filter((d) => d.kind === "highlighted").map(pick),
-      overrides: (stats.feedback || []).map((f) => ({ ...f, goalId: idByText.get(f.goalText) || "earlier" })),
+      overrides: (stats.feedback || []).filter((f) => f.action !== "notClickbait").map((f) => ({ ...f, goalId: idByText.get(f.goalText) || "earlier" })),
     };
   }
 
@@ -739,6 +808,7 @@
     dailyCallLimit: 3000,
     autoLoadCap: 3,
     driftPercent: 80,
+    clickbait: "label", // off | label | hide (filters maybe videos only)
   };
 
   // Saved settings merged over the defaults. Version 2 lowered the hide threshold from 0.2 to
@@ -770,7 +840,8 @@
 
   const api = { VIDEO_ID, HOME_CARD, SIDEBAR_CARD, videoPayload, goalsKey, cardKey, tallyId, parseDuration, parseViews, extractLockup, extractShortsLockup, extractFromData,
     extractFromDom, videoIdFromHref, detectLanguage, applyRules, activeGoals, decideScored, band, migrateSettings, localDay, aggregate, DEFAULT_SETTINGS, EXAMPLE_GOALS, setupComplete,
-    splitGoal, joinGoal, draftGoal, feedScore, goalName, describe, insights, languageName, driftShare, driftOn, formatVideo,
+    splitGoal, joinGoal, draftGoal, feedScore, goalName, describe, insights, languageName, driftShare, driftOn, formatVideo, formatDurationText,
+    KINDS, KIND_LIST, NOT_SURE, KIND_SURE, CLICKBAIT_AT, kindOf, isClickbait, notClickbaitKey, withoutClickbait,
     PROFILE, profileItems, profileLines, topicsFromReply, feedProfile, goalsExcluding };
   root.YFF = Object.assign(root.YFF || {}, api);
   if (typeof module !== "undefined" && module.exports) module.exports = api;

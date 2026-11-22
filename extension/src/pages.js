@@ -31,6 +31,7 @@
       stats = { error: "extension not ready" };
     }
     if (!stats || stats.error) return { error: stats ? stats.error : "no response", settings, tally };
+    stats.rows = Y.withoutClickbait(stats.rows, got.overrides);
     return { stats, tally, settings, agg: Y.aggregate(stats, tally, settings) };
   }
 

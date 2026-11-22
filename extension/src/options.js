@@ -103,6 +103,9 @@
           <div class="row"><span class="rl">Shortest video to show</span><div class="rc chips" role="group" aria-label="Shortest video to show">
             ${lengths.map((m) => `<button class="chip" type="button" data-min="${m}" aria-pressed="${(Number(g.minDurationMinutes) || 0) === m}">${m ? `${m} min` : "Any"}</button>`).join("")}
           </div></div>
+          <div class="row"><span class="rl">Kinds to show</span><div class="rc"><div class="chips" role="group" aria-label="Kinds to show">
+            ${Y.KIND_LIST.map((k) => `<button class="chip" type="button" data-kind="${k}" aria-pressed="${!(g.kindsOff || []).includes(k)}">${k}</button>`).join("")}
+          </div><div class="hint">Turn off the kinds you do not want for this goal. Videos Jev is not sure about always stay.</div></div></div>
           <div style="display:flex;align-items:center;gap:16px;margin-top:8px">
             <div class="gstat" style="flex:1">${esc(goalStat(g))}</div>
             <button class="pill text gdel" type="button" ${draft.goals.length === 1 ? "disabled" : ""}>Remove goal</button>
@@ -126,6 +129,13 @@
         el.querySelectorAll("[data-min]").forEach((b) => b.addEventListener("click", () => {
           g.minDurationMinutes = Number(b.dataset.min);
           renderGoals();
+          changed();
+        }));
+        el.querySelectorAll("[data-kind]").forEach((b) => b.addEventListener("click", () => {
+          const off = Y.KIND_LIST.filter((k) => (k === b.dataset.kind) !== (g.kindsOff || []).includes(k));
+          if (off.length) g.kindsOff = off;
+          else delete g.kindsOff;
+          b.setAttribute("aria-pressed", String(!off.includes(b.dataset.kind)));
           changed();
         }));
         el.querySelector(".gdel").addEventListener("click", () => {
@@ -186,6 +196,22 @@
   }
   $("hideShorts").addEventListener("change", (e) => { draft.hideShorts = e.target.checked; changed(); });
   $("hideNonVideo").addEventListener("change", (e) => { draft.hideNonVideo = e.target.checked; changed(); });
+
+  // ---- clickbait titles ---------------------------------------------------------------------
+  const BAIT_HINTS = {
+    off: "Titles are never labelled.",
+    label: "Adds \u201cClickbait title\u201d under the video. Nothing is hidden.",
+    hide: "Filters maybe videos with a clickbait title. On-goal videos stay, with the label.",
+  };
+  function renderBait() {
+    document.querySelectorAll("#baitModes [data-mode]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.mode === draft.clickbait)));
+    $("baitHint").textContent = BAIT_HINTS[draft.clickbait] || "";
+  }
+  document.querySelectorAll("#baitModes [data-mode]").forEach((b) => b.addEventListener("click", () => {
+    draft.clickbait = b.dataset.mode;
+    renderBait();
+    changed();
+  }));
 
   // ---- sensitivity ------------------------------------------------------------------------
   const toPct = (v) => Math.round(v * 100);
@@ -326,6 +352,7 @@
     openGoal = Math.min(openGoal, draft.goals.length - 1);
     renderGoals();
     renderRules();
+    renderBait();
     renderScale();
     cap.value = String(Number(draft.autoLoadCap) || 0);
     drift.value = String(DRIFT_STEPS.includes(Number(draft.driftPercent)) ? Number(draft.driftPercent) : 0);

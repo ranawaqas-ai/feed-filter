@@ -13,9 +13,11 @@
   const FLUSH_MS = 60;
   const FINAL = new Set(["show", "hide", "uncertain", "revealed"]);
 
+  const READABLE = new Set(["show", "uncertain", "revealed"]);
+
   let settings = null;
   let overrides = {};
-  const pCache = new Map(); // `${goalsHash}|${videoId}` -> {p, goalId}, for this tab's lifetime
+  const pCache = new Map(); // `${goalsHash}|${videoId}` -> {p, goalId, about}, for this tab's lifetime
   const queue = new Map(); // videoId -> {host, meta}
   let flushTimer = null;
   let flushCount = 0;
@@ -28,6 +30,7 @@
   let waitingForSetup = false; // no key or no active goal yet: YouTube is left as it is
   let driftActive = false; // the drift condition, see YFF.driftOn
   let driftDismissed = ""; // local day "Not today" was pressed
+  let kindPick = ""; // the kind chosen in the bar above the home grid; "" shows all
   let firstRun = ""; // "pending" from the setup page's save until the first-run panel is closed
 
   const html = () => document.documentElement;
@@ -57,6 +60,7 @@
       '<div class="yff-menu" role="menu">' +
         '<button class="yff-keep" type="button" role="menuitem">Keep, it\u2019s on goal</button>' +
         '<button class="yff-hide" type="button" role="menuitem">Hide, not for me</button>' +
+      '<button class="yff-notbait" type="button" role="menuitem">Not clickbait</button>' +
         '<div class="yff-sep"></div><div class="yff-match"></div>' +
       '</div>' +
       '<div class="yff-ask"><span class="yff-ask-text"></span>' +
@@ -86,6 +90,40 @@
       host.appendChild(box);
     }
     renderOverlay(host, box);
+    renderTags(host);
+  }
+
+  // The kind and the clickbait label, as badges in the bottom left corner of YouTube's own
+  // thumbnail element, so they belong to the card like the duration badge in the other corner.
+  const WARN_SVG = '<svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><path d="M12 4L2.5 20h19z"/><path d="M12 10v4M12 17v.01"/></svg>';
+  function renderTags(host) {
+    let tags = host.querySelector(".yff-tags");
+    const kind = host.dataset.yffKind || "";
+    const bait = host.dataset.yffClickbait === "1";
+    if (!kind && !bait) {
+      if (tags) tags.remove();
+      return;
+    }
+    if (!tags) {
+      const thumb = host.querySelector("yt-thumbnail-view-model");
+      if (!thumb) return;
+      tags = document.createElement("div");
+      tags.className = "yff-tags";
+      thumb.appendChild(tags);
+    }
+    const key = `${kind}|${bait}`;
+    if (tags.dataset.key === key) return;
+    tags.dataset.key = key;
+    tags.textContent = "";
+    const add = (text, icon) => {
+      const el = document.createElement("div");
+      el.className = "yff-tag";
+      el.innerHTML = icon;
+      el.append(text);
+      tags.appendChild(el);
+    };
+    if (kind) add(kind, "");
+    if (bait) add("Clickbait", WARN_SVG);
   }
 
   const pctText = (p) => `${Math.round(p * 100)}%`;
@@ -98,8 +136,12 @@
     box.querySelector(".yff-badge").textContent = d.label === "Kept" ? "KEPT" : "ON GOAL";
     let match = "";
     if (d.p != null && d.label === "Too short") match = `${d.match} for ${d.goal}, but ${d.detail}, shorter than this goal shows.`;
+    else if (d.byRule) match = `${d.match} for ${d.goal}, but filtered: ${d.detail}.`;
     else if (d.p != null) match = `${d.match} for ${d.goal}. ${marks}`;
     else if (d.detail) match = `${d.label}: ${d.detail}.`;
+    const bait = host.dataset.yffClickbait === "1";
+    if (bait && !d.byRule) match += `${match ? " " : ""}The title reads as clickbait.`;
+    box.querySelector(".yff-menu .yff-notbait").hidden = !bait;
     box.querySelector(".yff-match").textContent = match;
     box.querySelector(".yff-match").hidden = !match;
     box.querySelector(".yff-ask-text").textContent = d.p != null ? `On goal? ${d.match}` : "On goal?";
@@ -117,7 +159,6 @@
   // takes the pointer with it (measured 2026-11-17), so nothing inside the card stays visible.
   // The chip is one element in the page, above the preview, styled like YouTube's duration
   // badge and placed in the opposite corner. It holds while the pointer is inside the card's box.
-  const CHIP_STATES = new Set(["show", "uncertain", "revealed"]);
   let hoverHost = null;
 
   function hoverChip() {
@@ -140,7 +181,8 @@
   function showHover(host) {
     const thumb = host.querySelector(":scope > .yff-overlay > .yff-thumb");
     const d = Y.describe(host.dataset.yffReason, settings ? settings.goals : []);
-    if (!thumb || d.p == null || !CHIP_STATES.has(host.dataset.yffState)) return hideHover();
+    if (thumb && thumb.parentElement.classList.contains("yff-open")) return hideHover();
+    if (!thumb || d.p == null || !READABLE.has(host.dataset.yffState)) return hideHover();
     const r = thumb.getBoundingClientRect();
     const chip = hoverChip();
     // The watch-page sidebar's thumbnail is too narrow for the goal's name beside the duration.
@@ -220,7 +262,19 @@
     }
   }
 
+  // Sets the card's tags from what Jev said about the video, then decides it.
+  function applyScored(host, meta, { p, goalId, about: raw }, source) {
+    const about = raw && overrides[Y.notClickbaitKey(meta.videoId)] ? { ...raw, clickbait: 0 } : raw;
+    host.dataset.yffGoal = goalId;
+    host.dataset.yffKind = Y.kindOf(about) || "";
+    host.dataset.yffClickbait = Y.isClickbait(about, meta.title, settings) ? "1" : "";
+    const d = Y.decideScored(meta, settings, p, goalId, about);
+    apply(host, d.state, d.reason, source);
+  }
+
   function decide(host, meta) {
+    host.dataset.yffKind = "";
+    host.dataset.yffClickbait = "";
     if (!goals().length) return apply(host, "error", "no goal set", "rule");
     const override = meta.videoId ? overrides[overrideKey(meta.videoId)] : null;
     const ruled = Y.applyRules(meta, settings, override);
@@ -232,10 +286,7 @@
     if (!meta.videoId) return apply(host, "error", "could not read this card", "rule");
     if (meta.title) cardMeta.set(meta.videoId, { title: meta.title, channel: meta.channel || "" });
     const hit = pCache.get(`${Y.goalsKey(goals())}|${meta.videoId}`);
-    if (hit) {
-      const d = Y.decideScored(meta, settings, hit.p, hit.goalId);
-      return apply(host, d.state, d.reason, "session");
-    }
+    if (hit) return applyScored(host, meta, hit, "session");
     host.dataset.yffState = "pending";
     ensureOverlay(host);
     queue.set(meta.videoId, { host, meta });
@@ -301,6 +352,7 @@
         host.dataset.yffKey = key;
         delete host.dataset.yffState;
         delete host.dataset.yffTApplied;
+        host.removeAttribute("data-yff-offkind");
         if (reused) host.dataset.yffTSeen = String(now);
         host.yffMeta = meta;
         decide(host, meta);
@@ -309,6 +361,8 @@
         decide(host, meta); // re-blurred by reblurIfReused and now consistent again
       } else if (!host.querySelector(":scope > .yff-overlay")) {
         ensureOverlay(host); // YouTube re-rendered the card and dropped our overlay
+      } else if ((host.dataset.yffKind || host.dataset.yffClickbait) && !host.querySelector(".yff-tags")) {
+        renderTags(host); // or only its thumbnail
       }
     }
     trackFeedPages(fresh);
@@ -363,10 +417,9 @@
         apply(host, "error", `not judged: ${r ? r.error : "missing"}`, "error");
         continue;
       }
-      pCache.set(`${key}|${meta.videoId}`, { p: r.p, goalId: r.goalId });
-      host.dataset.yffGoal = r.goalId;
-      const d = Y.decideScored(meta, settings, r.p, r.goalId);
-      apply(host, d.state, d.reason, r.source);
+      const scored = { p: r.p, goalId: r.goalId, about: r.about || null };
+      pCache.set(`${key}|${meta.videoId}`, scored);
+      applyScored(host, meta, scored, r.source);
     }
   }
 
@@ -379,11 +432,13 @@
     const host = btn.closest(HOSTS);
     const meta = host && host.yffMeta;
     if (!meta) return;
+    if (btn.classList.contains("yff-notbait")) return markNotClickbait(host, meta);
     const overlay = btn.closest(".yff-overlay");
     if (btn.classList.contains("yff-more") || btn.classList.contains("yff-why")) {
       const open = !overlay.classList.contains("yff-open");
       closeMenus(overlay);
       overlay.classList.toggle("yff-open", open);
+      if (open) hideHover(); // the match chip sits above the page and would cover the menu
       overlay.querySelector(".yff-more").setAttribute("aria-expanded", String(open));
       return;
     }
@@ -405,6 +460,27 @@
       video: Y.videoPayload(meta) } }).catch(() => {});
   }
 
+  async function markNotClickbait(host, meta) {
+    closeMenus();
+    const reason = host.dataset.yffReason || "";
+    const pMatch = /p=([\d.]+)/.exec(reason);
+    const best = goals().find((g) => g.id === host.dataset.yffGoal) || goals()[0];
+    overrides[Y.notClickbaitKey(meta.videoId)] = "no";
+    await chrome.storage.local.set({ overrides });
+    const kept = host.dataset.yffState === "revealed" || reason.startsWith("override:");
+    if (kept) {
+      host.dataset.yffClickbait = ""; // the Keep stands; only the label goes
+      ensureOverlay(host);
+    } else {
+      decide(host, meta);
+    }
+    scheduleCounts();
+    if (!best) return;
+    chrome.runtime.sendMessage({ type: "feedback", body: {
+      goal: best.text, action: "notClickbait", p: pMatch ? Number(pMatch[1]) : null, previousVerdict: host.dataset.yffState,
+      reason: reason.slice(0, 80), video: Y.videoPayload(meta) } }).catch(() => {});
+  }
+
   // ---- counts, banner, auto-load cap ----------------------------------------------------
   let countsTimer = null;
   function scheduleCounts() {
@@ -419,7 +495,7 @@
   }
 
   function counts() {
-    const c = { shown: 0, hidden: 0, uncertain: 0, pending: 0 };
+    const c = { shown: 0, hidden: 0, uncertain: 0, pending: 0, clickbait: 0 };
     for (const host of document.querySelectorAll(HOSTS)) {
       if (!onVisiblePage(host)) continue;
       const s = host.dataset.yffState;
@@ -427,6 +503,7 @@
       else if (s === "hide") c.hidden += 1;
       else if (s === "uncertain" || s === "error") c.uncertain += 1;
       else c.pending += 1;
+      if (READABLE.has(s) && host.dataset.yffClickbait === "1") c.clickbait += 1;
     }
     c.drift = driftActive;
     return c;
@@ -436,6 +513,7 @@
     countsTimer = null;
     updateDrift();
     updateFirstRun();
+    updateKinds();
     const c = counts();
     html().dataset.yffCounts = JSON.stringify(c); // read by the end-to-end check
     chrome.runtime.sendMessage({ type: "counts", counts: c, off: tabOff() }).catch(() => {});
@@ -465,6 +543,52 @@
   function clearBanner(kind) {
     const el = document.getElementById("yff-banner");
     if (el && (!kind || el.dataset.kind === kind)) el.remove();
+  }
+
+  // ---- kinds bar -----------------------------------------------------------------------
+  // Chips above the home grid: one per kind among the readable cards. Picking one shows only
+  // that kind from what is already loaded, and pauses infinite scroll, which would otherwise
+  // keep loading pages to fill the grid. "All" brings everything back.
+  function updateKinds() {
+    const grid = homeGrid();
+    const bar = document.getElementById("yff-kinds");
+    const cards = grid ? [...grid.querySelectorAll(HOME)] : [];
+    const kindName = (h) => h.dataset.yffKind || Y.NOT_SURE;
+    const readable = cards.filter((h) => READABLE.has(h.dataset.yffState));
+    const tally = new Map();
+    for (const h of readable) tally.set(kindName(h), (tally.get(kindName(h)) || 0) + 1);
+    if (kindPick && !tally.has(kindPick)) kindPick = "";
+    for (const h of cards) h.toggleAttribute("data-yff-offkind", !!kindPick && kindName(h) !== kindPick);
+    html().toggleAttribute("data-yff-kind-pick", !!kindPick);
+    if (tabOff() || !Y.KIND_LIST.some((k) => tally.has(k))) {
+      if (bar) bar.remove();
+      return;
+    }
+    const chips = [["", "All", readable.length], ...[...Y.KIND_LIST, Y.NOT_SURE].filter((k) => tally.has(k)).map((k) => [k, k, tally.get(k)])];
+    const key = JSON.stringify([kindPick, chips]);
+    if (bar && bar.parentNode === grid && bar.dataset.key === key) return;
+    const focused = bar && bar.contains(document.activeElement) ? document.activeElement.dataset.kind : null;
+    const el = bar && bar.parentNode === grid ? bar : document.createElement("div");
+    if (bar && el !== bar) bar.remove();
+    el.id = "yff-kinds";
+    el.dataset.key = key;
+    el.setAttribute("role", "group");
+    el.setAttribute("aria-label", "Kinds of video");
+    el.textContent = "";
+    for (const [value, label, n] of chips) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.dataset.kind = value;
+      b.setAttribute("aria-pressed", String(value === kindPick));
+      b.textContent = `${label} ${n}`;
+      b.addEventListener("click", () => {
+        kindPick = value;
+        updateKinds();
+      });
+      el.appendChild(b);
+    }
+    if (!el.parentNode) grid.insertBefore(el, grid.querySelector(":scope > #contents") || grid.firstChild);
+    if (focused !== null) [...el.children].find((b) => b.dataset.kind === focused)?.focus();
   }
 
   // ---- feed drift notice ---------------------------------------------------------------
@@ -800,6 +924,7 @@
     pages.clear();
     consecutiveEmpty = 0;
     driftActive = false;
+    kindPick = "";
     html().removeAttribute("data-yff-stop-loading");
     clearBanner("autoload");
     scanSoon();

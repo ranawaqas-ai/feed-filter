@@ -12,11 +12,14 @@ const pass = (msg) => console.log(`PASS ${msg}`);
 class MemoryStore {
   constructor() {
     this.cache = new Map();
+    this.about = new Map();
     this.usage = new Map();
     this.logged = [];
   }
   async cachedP(vid, gh, m, w) { return this.cache.get(`${vid}|${gh}|${m}|${w}`) ?? null; }
   async putCache(vid, gh, m, w, p) { this.cache.set(`${vid}|${gh}|${m}|${w}`, p); }
+  async cachedAbout(vid, m, w) { return this.about.get(`${vid}|${m}|${w}`) ?? null; }
+  async putAbout(vid, m, w, a) { this.about.set(`${vid}|${m}|${w}`, a); }
   async reserveCalls(day, wanted, cap) {
     const used = this.usage.get(day) || 0;
     const granted = Math.max(0, Math.min(wanted, cap - used));
@@ -28,21 +31,30 @@ class MemoryStore {
 }
 
 const ok = (p) => ({ ok: true, status: 200, headers: new Map(), json: async () => ({ answers: { v0: { type: "noul", noul: p } } }) });
+const okAbout = (clickbait, probabilities) => ({ ok: true, status: 200, headers: new Map(), json: async () => ({ answers: {
+  clickbait: { type: "noul", noul: clickbait }, kind: { type: "choice", probabilities } } }) });
 const status = (s, headers = {}) => ({ ok: false, status: s, headers: new Map(Object.entries(headers)), json: async () => ({}) });
 const video = (id) => ({ videoId: id, title: `t ${id}`, channel: "c", durationSeconds: 600, viewCount: 1000, isShort: false, description: "" });
 
-function setup({ score, dailyCap = 100, responses } = {}) {
+// Goal calls and per-video calls are counted apart; the per-video call is answered with `about`.
+function setup({ score, dailyCap = 100, responses, about = () => okAbout(0.1, { Tutorial: 1 }) } = {}) {
   const calls = [];
+  const aboutCalls = [];
   const fetch = async (url, init) => {
     const body = JSON.parse(init.body);
+    if (body.questions.kind) {
+      aboutCalls.push(body);
+      return about(body.state);
+    }
     calls.push({ url, init, body });
     if (responses) return responses.shift();
     return ok(score(body.state.goal, body.state.video));
   };
   const jev = new D.JevClient({ apiKey: "test-key", fetch, sleep: async () => {}, random: () => 0 });
   const store = new MemoryStore();
-  const judge = new D.DirectJudge({ jev, store, formatVideo: YFF.formatVideo, localDay: YFF.localDay, dailyCap });
-  return { calls, jev, store, judge };
+  const judge = new D.DirectJudge({ jev, store, formatVideo: YFF.formatVideo, formatLength: YFF.formatDurationText,
+    kinds: YFF.KINDS, localDay: YFF.localDay, dailyCap });
+  return { calls, aboutCalls, jev, store, judge };
 }
 
 test("goalHash is the first 32 hex characters of sha256", async () => {
@@ -102,9 +114,10 @@ test("requestError reports a scorer-wide failure once", () => {
 });
 
 test("DirectJudge stops at the daily cap and reports calls used", async () => {
-  const { calls, judge } = setup({ score: () => 0.5, dailyCap: 3 });
+  const { calls, aboutCalls, judge } = setup({ score: () => 0.5, dailyCap: 3 });
   const out = await judge.judgeGoals([{ id: "g", text: "A" }], ["a", "b", "c", "d", "e"].map(video));
   assert.equal(calls.length, 3);
+  assert.equal(aboutCalls.length, 0, "goal scores come first; the per-video calls get what is left");
   assert.deepEqual(out.results.map((r) => r.error), [null, null, null, "daily_cap", "daily_cap"]);
   assert.equal(out.callsToday, 3);
   assert.equal(out.dailyCap, 3);
@@ -144,4 +157,30 @@ test("Semaphore caps calls in flight", async () => {
   })));
   assert.equal(peak, 2);
   pass("YFFDirect.Semaphore: never more than the limit in flight");
+});
+
+test("the per-video call asks kind and clickbait once, whatever the goals, and is cached", async () => {
+  const { calls, aboutCalls, judge, store } = setup({ score: () => 0.5, about: () => okAbout(0.93, { News: 0.54, Opinion: 0.46 }) });
+  const goals = [{ id: "ga", text: "A" }, { id: "gb", text: "B" }];
+  const out = await judge.judgeGoals(goals, [video("a")]);
+  assert.equal(calls.length, 2);
+  assert.equal(aboutCalls.length, 1, "one call per video, not per goal");
+  assert.deepEqual(aboutCalls[0].state, { title: "t a", channel: "c", length: "10:00" });
+  assert.deepEqual(aboutCalls[0].questions.kind.criteria, YFF.KINDS);
+  assert.deepEqual(out.results[0].about, { clickbait: 0.93, kind: "News", kindP: 0.54 });
+  assert.deepEqual(store.logged[0].items[0].about, out.results[0].about);
+  assert.equal(out.callsToday, 3, "it counts towards the daily limit");
+  await judge.judgeGoals([{ id: "gc", text: "C" }], [video("a")]);
+  assert.equal(aboutCalls.length, 1, "a new goal does not ask again");
+  pass("YFFDirect.aboutVideos: one call per video for kind and clickbait, cached, logged and counted");
+});
+
+test("a failed per-video call leaves the goal score standing", async () => {
+  for (const about of [() => status(400), () => okAbout(undefined, { News: 1 }), () => okAbout(0.5, {})]) {
+    const { judge, store } = setup({ score: () => 0.9, about });
+    const out = await judge.judgeGoals([{ id: "g", text: "A" }], [video("a")]);
+    assert.deepEqual([out.results[0].p, out.results[0].error, out.results[0].about], [0.9, null, null]);
+    assert.equal(store.about.size, 0, "a failed answer is not cached");
+  }
+  pass("YFFDirect.aboutVideos: an HTTP error or a malformed answer gives about null and never an error card");
 });
