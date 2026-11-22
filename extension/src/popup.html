@@ -16,6 +16,8 @@
   .cnts { display: flex; gap: 16px; margin-top: 10px; }
   .cnt { font-size: 12px; color: var(--text-2); display: flex; align-items: center; gap: 6px; }
   .cnt b { color: var(--text); font-weight: 500; }
+  .bait { display: flex; align-items: center; gap: 8px; margin-top: 14px; padding: 8px 12px; border-radius: 8px; background: var(--bait-bg); color: var(--bait); font-weight: 500; }
+  .bait svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
   .goals { padding: 8px 16px; }
   .goals .lbl { font-size: 14px; font-weight: 500; margin-bottom: 10px; }
   .foot { padding: 8px 16px 4px; font-size: 12px; color: var(--text-2); }
@@ -46,6 +48,7 @@
         <span class="cnt"><span class="dot sw-maybe"></span><b id="uncertain">0</b> maybe</span>
         <span class="cnt"><span class="dot sw-filtered"></span><b id="hidden">0</b> filtered</span>
       </div>
+      <div class="bait" id="bait" hidden><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4L2.5 20h19z"/><path d="M12 10v4M12 17v.01"/></svg><span id="baitText"></span></div>
     </div>
     <div class="block" id="noTab" hidden><div class="muted">Open YouTube to see this page's numbers.</div></div>
     <div class="hr"></div>

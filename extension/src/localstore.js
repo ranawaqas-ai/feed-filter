@@ -13,7 +13,7 @@
 
   // Folds one judge request into the (day, video) row: every goal asked about is listed, p is the max per goal text, each request
   // counts one sighting and each failed goal call one error.
-  function mergeJudged(row, day, ts, video, perGoal) {
+  function mergeJudged(row, day, ts, video, perGoal, about) {
     const r = row || { day, videoId: video.videoId, firstSeen: ts, title: "", channel: "", durationSeconds: null,
       isShort: false, pByGoalText: {}, goalTexts: [], sightings: 0, errors: 0 };
     r.firstSeen = Math.min(r.firstSeen, ts);
@@ -26,6 +26,7 @@
       if (p === null || p === undefined) r.errors += 1;
       else r.pByGoalText[goalText] = Math.max(r.pByGoalText[goalText] ?? -Infinity, p);
     }
+    if (about) r.about = about; // kind and clickbait answers; absent on rows from before they existed
     r.sightings += 1;
     return r;
   }
@@ -90,6 +91,20 @@
       await done(tx);
     }
 
+    // What Jev said about the video itself, in the same store under a key no goal hash can form.
+    async cachedAbout(videoId, model, wording) {
+      const db = await this.db();
+      const hit = await req(db.transaction("cache").objectStore("cache").get(`${videoId}|about|${model}|${wording}`));
+      return hit ? hit.about : null;
+    }
+
+    async putAbout(videoId, model, wording, about) {
+      const db = await this.db();
+      const tx = db.transaction("cache", "readwrite");
+      tx.objectStore("cache").put({ about, createdAt: Date.now() / 1000 }, `${videoId}|about|${model}|${wording}`);
+      await done(tx);
+    }
+
     // Read and write in one readwrite transaction, so two requests cannot both take the last calls.
     async reserveCalls(day, wanted, cap) {
       const db = await this.db();
@@ -107,15 +122,15 @@
       return (await req(db.transaction("usage").objectStore("usage").get(day))) || 0;
     }
 
-    // items: [{video, perGoal: [[goalText, {p}]]}] from one judge request.
+    // items: [{video, about, perGoal: [[goalText, {p}]]}] from one judge request.
     async logJudged(day, ts, items) {
       const db = await this.db();
       const tx = db.transaction(["days", "meta"], "readwrite");
       const daysStore = tx.objectStore("days");
-      for (const { video, perGoal } of items) {
+      for (const { video, perGoal, about } of items) {
         const key = `${day}|${video.videoId}`;
         const row = await req(daysStore.get(key));
-        daysStore.put(mergeJudged(row, day, ts, video, perGoal.map(([g, r]) => [g, r.p])), key);
+        daysStore.put(mergeJudged(row, day, ts, video, perGoal.map(([g, r]) => [g, r.p]), about), key);
       }
       const meta = tx.objectStore("meta");
       if (!(await req(meta.get("firstVerdictDay")))) meta.put(day, "firstVerdictDay");

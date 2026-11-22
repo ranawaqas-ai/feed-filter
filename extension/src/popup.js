@@ -69,6 +69,8 @@
     const seg = (n, cls) => (n ? `<span class="${cls}" style="flex:${n}"></span>` : "");
     $("split").innerHTML = seg(c.shown, "sw-ongoal") + seg(c.uncertain, "sw-maybe") + seg(c.hidden, "sw-filtered") + seg(c.pending, "");
     $("split").setAttribute("aria-label", `${c.shown} on goal, ${c.uncertain} maybe, ${c.hidden} filtered, ${c.pending} still checking`);
+    $("bait").hidden = !c.clickbait;
+    $("baitText").textContent = `${P.num(c.clickbait)} clickbait title${c.clickbait === 1 ? "" : "s"} labelled`;
     $("reveal").checked = state.reveal;
     $("off").checked = state.off;
   }

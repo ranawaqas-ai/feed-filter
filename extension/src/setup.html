@@ -103,7 +103,7 @@
       </div>
       <div class="status" role="status"><span class="dot wait" id="keyDot" hidden></span><span id="keyText"></span></div>
       <div class="hint">Stored only in this Chrome profile and sent only to api.typesafe.ai. Anyone with access to this profile can read it.</div>
-      <div class="row"><div class="t"><label for="dailyCallLimit">Daily call limit</label><span>One call per video per goal. Scoring stops for the day at this number. TypeSafe has no per-key spending limit, so this is the guard.</span></div>
+      <div class="row"><div class="t"><label for="dailyCallLimit">Daily call limit</label><span>One call per video per goal, plus one per video. Scoring stops for the day at this number. TypeSafe has no per-key spending limit, so this is the guard.</span></div>
         <input id="dailyCallLimit" class="input" type="number" min="1" step="1"></div>
       <div class="nav"><span class="muted small">Opens YouTube and checks your home feed, about 30 calls.</span><span class="sp"></span><button class="pill text" id="backToGoal" type="button">Back</button><button class="pill primary" id="save" type="submit">Save and check my feed</button></div>
       <div class="err" id="msg" role="alert" style="margin-top:12px"></div>

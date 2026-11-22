@@ -210,7 +210,7 @@ test("aggregate", () => {
     "2026-10-01": { z: "rule:shorts" } } };
   const a = YFF.aggregate(stats, tally, s);
   assert.equal(a.latestDay, "2026-11-15");
-  assert.deepEqual(a.latestCounts, { offered: 7, highlighted: 2, uncertain: 1, hiddenScore: 1, hiddenDuration: 1, notJudged: 2 });
+  assert.deepEqual(a.latestCounts, { offered: 7, highlighted: 2, uncertain: 1, hiddenScore: 1, hiddenDuration: 1, hiddenAbout: 0, notJudged: 2 });
   assert.equal(a.byGoal.find((g) => g.goalId === "G5").uncertain, 1);
   assert.equal(a.byGoal.find((g) => g.goalId === "earlier").highlighted, 1);
   assert.deepEqual(a.highlighted.map((h) => h.videoId), ["old", "high"]);
@@ -460,4 +460,56 @@ test("migrateSettings version 5 drops the proxy settings", () => {
   const fresh = YFF.migrateSettings(undefined);
   assert.deepEqual([fresh.jevKey, fresh.dailyCallLimit, fresh.settingsVersion], ["", 3000, 5]);
   pass("YFF.migrateSettings: v5 drops scorer, proxyUrl and proxySecret; a former proxy profile keeps its goals and rules and is not set up until it has a key");
+});
+
+test("kindOf and isClickbait apply the measured cut-offs", () => {
+  const s = YFF.DEFAULT_SETTINGS;
+  assert.equal(YFF.kindOf({ kind: "News", kindP: 0.7 }), "News");
+  assert.equal(YFF.kindOf({ kind: "News", kindP: 0.69 }), null);
+  assert.equal(YFF.kindOf({ kind: "Other", kindP: 1 }), null);
+  assert.equal(YFF.kindOf(null), null);
+  assert.equal(YFF.isClickbait({ clickbait: 0.9 }, "This new model is INSANE", s), true);
+  assert.equal(YFF.isClickbait({ clickbait: 0.89 }, "This new model is INSANE", s), false);
+  assert.equal(YFF.isClickbait({ clickbait: 1 }, "\u0939\u093f\u0902\u0926\u0940 \u0938\u092e\u093e\u091a\u093e\u0930", s), false, "other languages are not labelled");
+  assert.equal(YFF.isClickbait({ clickbait: 1 }, "This new model is INSANE", { ...s, clickbait: "off" }), false);
+  assert.equal(YFF.isClickbait(null, "x", s), false);
+  pass("YFF.kindOf, isClickbait: 0.7 and 0.9 cut-offs, Other is no kind, English only, off switch, missing answer");
+});
+
+test("decideScored filters the kinds a goal turned off, and clickbait maybes on request", () => {
+  const s = { ...YFF.DEFAULT_SETTINGS, goals: [{ id: "G1", name: "AI", text: "x", kindsOff: ["News"] }, { id: "G2", name: "Cooking", text: "y" }] };
+  const item = { title: "This new model is INSANE", durationSeconds: 600 };
+  const news = { kind: "News", kindP: 0.95, clickbait: 0.95 };
+  assert.deepEqual(YFF.decideScored(item, s, 0.9, "G1", news), { state: "hide", reason: "rule:kind:G1:News p=0.90" }, "on goal too");
+  assert.equal(YFF.decideScored(item, s, 0.9, "G2", news).state, "show", "another goal keeps its kinds");
+  assert.equal(YFF.decideScored(item, s, 0.9, "G1", { ...news, kindP: 0.6 }).state, "show", "not sure is never filtered");
+  assert.equal(YFF.decideScored(item, s, 0.9, "G1", null).state, "show", "no answer, no filter");
+  assert.equal(YFF.decideScored(item, s, 0.05, "G1", news).reason, "hide p=0.05 G1", "a low match stays a low match");
+  assert.equal(YFF.decideScored(item, s, 0.5, "G2", news).state, "uncertain", "label mode hides nothing");
+  const hide = { ...s, clickbait: "hide" };
+  assert.equal(YFF.decideScored(item, hide, 0.5, "G2", news).reason, "rule:clickbait:G2 p=0.50");
+  assert.equal(YFF.decideScored(item, hide, 0.9, "G2", news).state, "show", "on-goal videos stay");
+  const kind = YFF.describe("rule:kind:G1:News p=0.90", s.goals);
+  assert.deepEqual([kind.label, kind.detail, kind.match, kind.byRule], ["Filtered", "News, off for AI", "90% match", true]);
+  assert.equal(YFF.describe("rule:clickbait:G2 p=0.50", s.goals).detail, "Clickbait title");
+  assert.equal(YFF.driftShare(["rule:kind:G1:News p=0.90", "rule:clickbait:G2 p=0.50", "show p=0.90 G1"]).scored, 1, "left out of drift, as other rule hides are");
+  pass("YFF.decideScored: kinds per goal, clickbait maybes, order, plain words, drift");
+});
+
+test("aggregate counts kinds, clickbait and what they hid", () => {
+  const s = { ...YFF.DEFAULT_SETTINGS, clickbait: "hide", goals: [{ id: "G1", name: "AI", text: "x", kindsOff: ["News"] }] };
+  const row = (videoId, p, about) => ({ day: "2026-11-15", videoId, firstSeen: 1794700000, title: "This new model is INSANE", channel: "c",
+    durationSeconds: 600, pByGoalText: { x: p }, goalTexts: ["x"], ...(about ? { about } : {}) });
+  const about = (kind, kindP, clickbait) => ({ kind, kindP, clickbait });
+  const rows = [row("a", 0.9, about("Lecture", 1, 0.1)), row("b", 0.9, about("News", 1, 0.1)), row("c", 0.5, about("Opinion", 1, 0.95)),
+    row("d", 0.5, about("News", 0.5, 0.1)), row("e", 0.9)];
+  const feedback = [{ ts: 1, videoId: "z", goalText: "x", action: "notClickbait" }, { ts: 2, videoId: "y", goalText: "x", action: "keep" }];
+  const a = YFF.aggregate({ since: "2026-11-10", today: "2026-11-15", rows, feedback }, null, s);
+  assert.deepEqual(a.totals, { offered: 5, highlighted: 2, uncertain: 1, hiddenScore: 0, hiddenDuration: 0, hiddenAbout: 2, notJudged: 0 });
+  assert.deepEqual(a.byKind.map((k) => [k.kind, k.offered]), [["Lecture", 1], ["News", 1], ["Opinion", 1], ["Not sure", 1]], "rows from before kinds existed are left out");
+  assert.deepEqual(a.aboutBlocks, { "News, off for AI": 1, "Clickbait title": 1 });
+  assert.deepEqual(a.clickbait, { onGoal: { labelled: 0, checked: 1 }, maybe: { labelled: 1, checked: 2 }, corrected: 1 });
+  assert.deepEqual(a.overrides.map((o) => o.action), ["keep"], "Not clickbait is not a Keep or Hide correction");
+  assert.equal(YFF.withoutClickbait(rows, { "c:c": "no" })[2].about.clickbait, 0);
+  pass("YFF.aggregate: by kind, clickbait labelled of checked, hides by plain reason, corrections");
 });

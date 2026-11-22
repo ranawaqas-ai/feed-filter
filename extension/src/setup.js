@@ -29,6 +29,7 @@
       name: (asFilled && base.name) || draft.name,
       text: asFilled && base.skip === $("skip").value ? base.text : draft.text, // an untouched goal keeps its exact text, which the score cache is keyed by
       minDurationMinutes: asFilled ? base.minDurationMinutes : (first && first.minDurationMinutes) || 0,
+      ...(first && first.kindsOff ? { kindsOff: first.kindsOff } : {}),
     };
   }
 

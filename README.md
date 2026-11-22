@@ -6,7 +6,8 @@ A Chrome extension that blurs YouTube home-feed and watch-sidebar cards until ea
 - Videos that clearly serve a goal get an **ON GOAL** badge and a blue ring. Clearly off-goal videos are filtered out. Anything in between is shown normally.
 - Every filtered card can be revealed with the reason, a maybe card asks "On goal?" on its thumbnail with Yes and No, and an on-goal card can be kept or hidden from its three-dot menu.
 - When most of what YouTube offers is rejected, a notice above the feed says so and offers a search for each of your goals.
-- A dashboard shows what was let through, by goal and over time.
+- Each video's kind (Tutorial, Lecture, News, Opinion, Review or Entertainment) and a label for clickbait titles show as badges on the thumbnail. A goal can turn kinds off.
+- A dashboard shows what was let through, by goal, by kind and over time.
 - What each version added is listed on the [releases page](https://feedfilter.waqasrana.space/releases.html).
 - Optional: with an Anthropic key, the dashboard also shows what YouTube is feeding you by topic, which topics no goal covers, and lets you turn one into a goal or an exclusion.
 
@@ -37,13 +38,13 @@ Click **Remove** on Feed Filter's card in `chrome://extensions`. This deletes th
 
 ## Cost
 
-Each video is scored once per goal, and scores are cached for 30 days, so a video seen again costs nothing. A long evening on YouTube with three goals can use a few thousand calls. Calls are billed to your own TypeSafe account.
+Each video is scored once per goal, plus one call for its kind and title, and the answers are cached for 30 days, so a video seen again costs nothing. A long evening on YouTube with three goals can use a few thousand calls. Calls are billed to your own TypeSafe account.
 
 TypeSafe has no per-key spending limit. The **daily call limit** in the extension is the guard. Past it, new videos stay blurred until the next day. Calls used today are shown in Settings.
 
 ## What leaves your browser
 
-For each video, the extension sends its video ID, title, channel, length, view count and whether it is a Short, together with your goal text, to `api.typesafe.ai`. A description field is part of the request and is always empty, because feed cards carry none. No cookies or account details are sent, and Jev never sees what you watched.
+For each video, the extension sends its video ID, title, channel, length, view count and whether it is a Short, together with your goal text, to `api.typesafe.ai`. A description field is part of the request and is always empty, because feed cards carry none. A second request per video sends its title, channel and length, without your goals, to find its kind and whether the title is clickbait. No cookies or account details are sent, and Jev never sees what you watched.
 
 Your key is stored in this Chrome profile's extension storage and is sent only to `api.typesafe.ai`. Anyone with access to your Chrome profile can read it.
 
